@@ -41,14 +41,51 @@ its video output as a native child window.
 
 ### Windows 10/11
 
-1. Download an mpv dev package, e.g. the `mpv-dev-x86_64-*` archive from
-   <https://mpv.io/installation/> (shinchiro builds) or via `winget`/`scoop`.
-2. Copy `libmpv-2.dll` next to `noir-player.exe`, or place its directory on
-   `PATH`. The import library is not needed at link time because `libmpv2-sys`
-   resolves symbols from the DLL at runtime on Windows; on MSVC toolchains a
-   `libmpv-2.dll.lib` import library may be required — point `RUSTFLAGS`
-   `search` paths at it if needed.
-3. `cargo build --release` (default features).
+The Rust GNU toolchain (`x86_64-pc-windows-gnu`) links with `-lmpv`, so the
+linker needs a libmpv **import library** (`libmpv.dll.a`) — a bare DLL is not
+enough. Two reliable setups:
+
+#### Option A — MSYS2 (matches the ucrt64/mingw toolchain)
+
+If you build with the MSYS2 mingw gcc (e.g. `D:/MSYS2/ucrt64`), install the
+libmpv development package in the matching environment:
+
+```sh
+pacman -S mingw-w64-ucrt-x86_64-mpv     # ucrt64
+# or: pacman -S mingw-w64-x86_64-mpv    # msys2/mingw64
+```
+
+This provides `libmpv.dll.a` in the environment's `lib` directory (found by
+the linker automatically) and `libmpv-2.dll` in its `bin` directory. Then:
+
+```powershell
+cargo build --release
+```
+
+When running the exe outside the MSYS2 shell, make sure the MSYS2 `bin`
+directory (e.g. `D:\MSYS2\ucrt64\bin`) is on `PATH` so `libmpv-2.dll` and its
+dependencies resolve.
+
+#### Option B — shinchiro mpv-dev package
+
+1. Download `mpv-dev-x86_64-*` from <https://mpv.io/installation/>.
+2. Generate an import library from the shipped `.def` file (requires MSYS2
+   binutils, already present with the GNU toolchain):
+
+   ```sh
+   dlltool -d libmpv-2.def -D libmpv-2.dll -l libmpv.dll.a
+   ```
+
+3. Point the linker at the directory containing `libmpv.dll.a`:
+
+   ```powershell
+   $env:RUSTFLAGS = "-L native=C:\path\to\mpv-dev"
+   cargo build --release
+   ```
+
+4. Copy `libmpv-2.dll` next to `target\release\noir-player.exe` (it also
+   needs its own dependencies — the mpv-dev archive lists them; the easiest
+   complete set is the full mpv package's `bin` directory on `PATH`).
 
 ### Linux
 
