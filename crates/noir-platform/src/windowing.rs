@@ -39,14 +39,14 @@ pub fn position_video_child(
     unsafe {
         let child = FindWindowExW(
             parent as windows_sys::Win32::Foundation::HWND,
-            std::ptr::null_mut(),
+            0,
             std::ptr::null(),
             std::ptr::null(),
         );
-        if child.is_null() {
+        if child == 0 {
             return false;
         }
-        MoveWindow(child, x, y, width, height, true) != 0
+        MoveWindow(child, x, y, width, height, 1) != 0
     }
 }
 
