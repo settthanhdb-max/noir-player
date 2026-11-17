@@ -40,6 +40,7 @@ pub struct NoirApp {
     pub scrub_position: Option<f64>,
     pub scrubbing: Option<f64>,
     pub viewport_rect: Option<Rect>,
+    pub video_child_shown: bool,
     pub last_mouse_activity: Instant,
     pub osd_message: Option<(String, Instant)>,
     pub error_message: Option<String>,
@@ -118,6 +119,7 @@ impl NoirApp {
             scrub_position: None,
             scrubbing: None,
             viewport_rect: None,
+            video_child_shown: false,
             last_mouse_activity: Instant::now(),
             osd_message: None,
             error_message: None,
@@ -1150,23 +1152,45 @@ impl eframe::App for NoirApp {
         self.error_toast(&ctx);
         self.confirm_exit_dialog(&ctx);
 
-        // Keep the embedded video surface aligned with the viewport rect.
+        // Keep the embedded video surface aligned with the viewport rect and
+        // visible only while the player screen is showing media. On any other
+        // screen the child window is hidden so it can never overlap or cover
+        // unrelated UI.
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let want_video = self.engine_attached
+            && self.screen == Screen::Player
+            && self.controller.snapshot().current_path.is_some();
+        if !want_video {
+            self.viewport_rect = None;
+        }
         if self.engine_attached {
-            if let (Some(rect), Ok(handle)) = (self.viewport_rect, frame.window_handle()) {
+            if let Ok(handle) = frame.window_handle() {
                 let parent = match handle.as_raw() {
                     RawWindowHandle::Win32(w) => w.hwnd.get() as *mut std::ffi::c_void,
                     _ => std::ptr::null_mut(),
                 };
                 if !parent.is_null() {
-                    let ppp = ctx.pixels_per_point();
-                    let _ = noir_platform::windowing::position_video_child(
-                        parent,
-                        (rect.min.x * ppp) as i32,
-                        (rect.min.y * ppp) as i32,
-                        (rect.width() * ppp) as i32,
-                        (rect.height() * ppp) as i32,
-                    );
+                    if want_video {
+                        if let Some(rect) = self.viewport_rect {
+                            if !self.video_child_shown
+                                && noir_platform::windowing::set_video_child_visible(parent, true)
+                            {
+                                self.video_child_shown = true;
+                            }
+                            let ppp = ctx.pixels_per_point();
+                            let _ = noir_platform::windowing::position_video_child(
+                                parent,
+                                (rect.min.x * ppp) as i32,
+                                (rect.min.y * ppp) as i32,
+                                (rect.width() * ppp) as i32,
+                                (rect.height() * ppp) as i32,
+                            );
+                        }
+                    } else if self.video_child_shown
+                        && noir_platform::windowing::set_video_child_visible(parent, false)
+                    {
+                        self.video_child_shown = false;
+                    }
                 }
             }
         }

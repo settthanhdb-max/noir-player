@@ -50,6 +50,37 @@ pub fn position_video_child(
     }
 }
 
+/// Show or hide the renderer's native child window. The video surface must
+/// only be visible while the player screen is active; on any other screen the
+/// child would be repositioned over unrelated UI and cover it.
+///
+/// Returns `true` when a child window exists and the visibility command was
+/// delivered, `false` when there is no child window yet.
+#[cfg(windows)]
+pub fn set_video_child_visible(parent: *mut std::ffi::c_void, visible: bool) -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        FindWindowExW, ShowWindow, SW_HIDE, SW_SHOW,
+    };
+    unsafe {
+        let child = FindWindowExW(
+            parent as windows_sys::Win32::Foundation::HWND,
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        if child == 0 {
+            return false;
+        }
+        ShowWindow(child, if visible { SW_SHOW } else { SW_HIDE });
+        true
+    }
+}
+
+#[cfg(not(windows))]
+pub fn set_video_child_visible(_parent: *mut std::ffi::c_void, _visible: bool) -> bool {
+    false
+}
+
 #[cfg(not(windows))]
 pub fn position_video_child(
     _parent: *mut std::ffi::c_void,

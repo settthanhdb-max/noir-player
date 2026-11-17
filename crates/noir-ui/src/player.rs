@@ -11,7 +11,46 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     let snapshot = app.controller.snapshot();
     let controls_visible = app.controls_visible(&snapshot);
 
-    let (viewport_rect, _) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
+    // Any pointer movement on the player screen resets the auto-hide timer, so
+    // the interface reappears while the mouse is in use and hides when it
+    // rests.
+    if ui.input(|i| i.pointer.delta().length_sq() > 0.0) {
+        app.mark_mouse_activity();
+    }
+
+    let avail = ui.available_size();
+    let show_info = app.show_info && appearance.show_info_overlay;
+    let info_text = if show_info {
+        info_lines(app, &snapshot).join("\n")
+    } else {
+        String::new()
+    };
+    let info_strip_height = if show_info {
+        (info_text.lines().count() as f32 * 15.0 + 14.0).min(220.0)
+    } else {
+        0.0
+    };
+    let control_strip_height = if appearance.show_controls {
+        if app.speed_menu_open {
+            90.0
+        } else {
+            64.0
+        }
+    } else {
+        0.0
+    };
+    let info_at_bottom = show_info && appearance.osd_position >= 2;
+    let viewport_height = (avail.y - info_strip_height - control_strip_height).max(120.0);
+
+    // The embedded mpv surface only ever covers the viewport rect, so the
+    // info and control panels live in dedicated strips outside it and can
+    // never be covered by the native video window.
+    if show_info && !info_at_bottom {
+        info_strip(ui, avail.x, info_strip_height, &info_text);
+    }
+
+    let (viewport_rect, _) =
+        ui.allocate_exact_size(Vec2::new(avail.x, viewport_height), Sense::click_and_drag());
 
     // Viewport background: pure black so letterboxing is seamless.
     ui.painter().rect_filled(viewport_rect, 0, Color32::BLACK);
@@ -58,33 +97,42 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
         app.mark_mouse_activity();
     }
 
-    // Information overlay.
-    if app.show_info && appearance.show_info_overlay {
-        info_overlay(app, ui.ctx(), viewport_rect, &snapshot);
+    // Information strip (top or bottom depending on the OSD position setting).
+    if info_at_bottom {
+        info_strip(ui, avail.x, info_strip_height, &info_text);
     }
 
-    // Control panel overlay at the bottom of the viewport.
-    if controls_visible && appearance.show_controls {
-        egui::Area::new(egui::Id::unique("player_controls"))
-            .anchor(Align2::CENTER_BOTTOM, [0.0, -4.0])
-            .order(egui::Order::Middle)
-            .show(ui.ctx(), |ui| {
-                egui::Frame::default()
-                    .fill(Palette::Dark.colors().surface)
-                    .corner_radius(CornerRadius::same(6))
-                    .inner_margin(egui::Margin::symmetric(10, 6))
-                    .stroke(egui::Stroke::new(1.0, Palette::Dark.colors().border))
-                    .show(ui, |ui| control_panel(app, ui, &snapshot));
-            });
+    // Control strip below the viewport, outside the native video rect.
+    if appearance.show_controls {
+        let (_, strip) = ui.allocate_exact_size(ui.available_size(), Sense::hover());
+        if strip.hovered() {
+            app.mark_mouse_activity();
+        }
+        if controls_visible {
+            let colors = Palette::Dark.colors();
+            egui::Frame::default()
+                .fill(colors.surface)
+                .inner_margin(egui::Margin::symmetric(10, 6))
+                .stroke(egui::Stroke::new(1.0, colors.border))
+                .show(ui, |ui| control_panel(app, ui, &snapshot));
+        }
     }
 }
 
-fn info_overlay(
-    app: &NoirApp,
-    ctx: &egui::Context,
-    _viewport: Rect,
-    snapshot: &noir_playback::engine::EngineSnapshot,
-) {
+fn info_strip(ui: &mut Ui, width: f32, height: f32, text: &str) {
+    ui.allocate_ui(Vec2::new(width, height), |ui| {
+        egui::Frame::default()
+            .fill(Color32::from_rgba_unmultiplied(0x09, 0x09, 0x0B, 235))
+            .inner_margin(egui::Margin::same(6))
+            .corner_radius(CornerRadius::same(4))
+            .show(ui, |ui| {
+                ui.set_max_width(340.0);
+                ui.label(RichText::new(text).monospace().small());
+            });
+    });
+}
+
+fn info_lines(app: &NoirApp, snapshot: &noir_playback::engine::EngineSnapshot) -> Vec<String> {
     let stats = &snapshot.stats;
     let mut lines = Vec::new();
     if let (Some(w), Some(h)) = (stats.width, stats.height) {
@@ -128,27 +176,7 @@ fn info_overlay(
     {
         lines.push(format!("Sub: {}", track_label(sub)));
     }
-
-    let anchor = match app.settings.appearance.osd_position {
-        0 => (Align2::LEFT_TOP, [8.0, 8.0]),
-        1 => (Align2::RIGHT_TOP, [-8.0, 8.0]),
-        2 => (Align2::LEFT_BOTTOM, [8.0, -8.0]),
-        _ => (Align2::RIGHT_BOTTOM, [-8.0, -8.0]),
-    };
-    let text = lines.join("\n");
-    egui::Area::new(egui::Id::unique("info_overlay"))
-        .anchor(anchor.0, anchor.1)
-        .order(egui::Order::Foreground)
-        .show(ctx, |ui| {
-            egui::Frame::default()
-                .fill(Color32::from_rgba_unmultiplied(0x09, 0x09, 0x0B, 220))
-                .inner_margin(egui::Margin::same(6))
-                .corner_radius(CornerRadius::same(4))
-                .show(ui, |ui| {
-                    ui.set_max_width(240.0);
-                    ui.label(RichText::new(text).monospace().small());
-                });
-        });
+    lines
 }
 
 fn track_label(t: &TrackInfo) -> String {
