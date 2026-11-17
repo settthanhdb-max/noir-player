@@ -1,0 +1,73 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/noir-core",
+    "crates/noir-settings",
+    "crates/noir-playback",
+    "crates/noir-library",
+    "crates/noir-platform",
+    "crates/noir-ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+authors = ["NOIR Player contributors"]
+repository = "https://github.com/noir-player/noir-player"
+
+[workspace.dependencies]
+noir-core = { path = "crates/noir-core" }
+noir-settings = { path = "crates/noir-settings" }
+noir-playback = { path = "crates/noir-playback" }
+noir-library = { path = "crates/noir-library" }
+noir-platform = { path = "crates/noir-platform" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "1.2"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+directories = "6.0"
+walkdir = "2.5"
+rusqlite = { version = "0.43", features = ["bundled"] }
+rfd = "0.15"
+eframe = { version = "0.37", default-features = false, features = [
+    "default_fonts",
+    "glow",
+    "wayland",
+    "x11",
+] }
+egui = "0.37"
+egui_plot = "0.37"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+libmpv2 = "7.0"
+libmpv2-sys = "4.0"
+crossbeam-channel = "0.5"
+raw-window-handle = "0.6"
+parking_lot = "0.12"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+too_many_arguments = "allow"
+module_inception = "allow"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

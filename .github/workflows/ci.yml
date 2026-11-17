@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Check & test (no mpv)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --no-default-features -- -D warnings
+      - name: Test
+        run: cargo test --workspace --no-default-features
+      - name: Build (mock engine)
+        run: cargo build -p noir-ui --no-default-features
+
+  linux-mpv:
+    name: Type-check mpv backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install libmpv
+        run: sudo apt-get update && sudo apt-get install -y libmpv-dev
+      - name: Check mpv feature
+        run: cargo check -p noir-ui --features mpv
+
+  windows:
+    name: Windows build (no mpv)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test
+        run: cargo test --workspace --no-default-features
+      - name: Build (mock engine)
+        run: cargo build -p noir-ui --no-default-features --release

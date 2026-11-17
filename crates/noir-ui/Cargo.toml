@@ -1,0 +1,42 @@
+[package]
+name = "noir-ui"
+description = "NOIR Player desktop application (egui/eframe)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+default-run = "noir-player"
+
+[[bin]]
+name = "noir-player"
+path = "src/main.rs"
+
+[features]
+default = ["mpv"]
+mpv = ["noir-playback/mpv"]
+
+[dependencies]
+noir-core = { workspace = true }
+noir-settings = { workspace = true }
+noir-playback = { workspace = true }
+noir-library = { workspace = true }
+noir-platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+rfd = { workspace = true }
+eframe = { workspace = true }
+egui = { workspace = true }
+image = { workspace = true, optional = true }
+raw-window-handle = { workspace = true }
+crossbeam-channel = { workspace = true }
+glow = "0.17"
+
+
+[lints]
+workspace = true
