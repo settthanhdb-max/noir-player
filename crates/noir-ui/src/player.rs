@@ -189,27 +189,29 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &noir_playback::engin
     // Buttons row.
     ui.horizontal(|ui| {
         let tr = app.tr;
-        if icon_button(ui, "◀◀", tr.t("ctrl.prev")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Prev, tr.t("ctrl.prev")) {
             app.play_previous();
         }
-        let (glyph, tip) = match snapshot.state {
-            PlaybackState::Playing | PlaybackState::Buffering => ("▮▮", tr.t("ctrl.pause")),
-            _ => ("▶", tr.t("ctrl.play")),
+        let (icon, tip) = match snapshot.state {
+            PlaybackState::Playing | PlaybackState::Buffering => {
+                (crate::icons::Icon::Pause, tr.t("ctrl.pause"))
+            }
+            _ => (crate::icons::Icon::Play, tr.t("ctrl.play")),
         };
-        if icon_button(ui, glyph, tip) {
+        if crate::icons::icon_button(ui, icon, tip) {
             app.controller.toggle_play();
         }
-        if icon_button(ui, "■", tr.t("ctrl.stop")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Stop, tr.t("ctrl.stop")) {
             app.controller.stop();
         }
-        if icon_button(ui, "▶▶", tr.t("ctrl.next")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Next, tr.t("ctrl.next")) {
             app.play_next();
         }
-        if icon_button(ui, "◀|", tr.t("ctrl.step_back")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::StepBack, tr.t("ctrl.step_back")) {
             app.controller
                 .execute(noir_playback::engine::EngineCommand::FrameStep { direction: -1 });
         }
-        if icon_button(ui, "|▶", tr.t("ctrl.step_fwd")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::StepFwd, tr.t("ctrl.step_fwd")) {
             app.controller
                 .execute(noir_playback::engine::EngineCommand::FrameStep { direction: 1 });
         }
@@ -222,12 +224,12 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &noir_playback::engin
 
         ui.separator();
 
-        let (mute_glyph, mute_tip) = if snapshot.muted {
-            ("M", tr.t("ctrl.unmute"))
+        let (mute_icon, mute_tip) = if snapshot.muted {
+            (crate::icons::Icon::Muted, tr.t("ctrl.unmute"))
         } else {
-            ("V", tr.t("ctrl.mute"))
+            (crate::icons::Icon::Volume, tr.t("ctrl.mute"))
         };
-        if icon_button(ui, mute_glyph, mute_tip) {
+        if crate::icons::icon_button(ui, mute_icon, mute_tip) {
             app.controller.toggle_mute();
         }
         let mut volume = snapshot.volume as f32;
@@ -250,18 +252,21 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &noir_playback::engin
 
         ui.separator();
 
-        if icon_button(ui, "≡", tr.t("ctrl.playlist")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Playlist, tr.t("ctrl.playlist")) {
             app.show_playlist = !app.show_playlist;
         }
-        if icon_button(ui, "i", tr.t("ctrl.info")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Info, tr.t("ctrl.info")) {
             app.show_info = !app.show_info;
         }
-        let (fs_glyph, fs_tip) = if app.is_fullscreen {
-            ("⤢", tr.t("ctrl.exit_fullscreen"))
+        let (fs_icon, fs_tip) = if app.is_fullscreen {
+            (
+                crate::icons::Icon::ExitFullscreen,
+                tr.t("ctrl.exit_fullscreen"),
+            )
         } else {
-            ("⛶", tr.t("ctrl.fullscreen"))
+            (crate::icons::Icon::Fullscreen, tr.t("ctrl.fullscreen"))
         };
-        if icon_button(ui, fs_glyph, fs_tip) {
+        if crate::icons::icon_button(ui, fs_icon, fs_tip) {
             app.toggle_fullscreen(ui.ctx());
         }
     });
@@ -278,12 +283,6 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &noir_playback::engin
             }
         });
     }
-}
-
-fn icon_button(ui: &mut Ui, glyph: &str, tooltip: &str) -> bool {
-    ui.add(egui::Button::new(RichText::new(glyph).size(13.0)))
-        .on_hover_text(tooltip)
-        .clicked()
 }
 
 /// Custom monochrome timeline: thin bar, click and drag to seek.

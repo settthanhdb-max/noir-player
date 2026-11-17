@@ -102,8 +102,19 @@ pub fn panel(app: &mut NoirApp, ui: &mut Ui) {
                 let mut remove = false;
                 let mut play = false;
                 ui.horizontal(|ui| {
-                    let label: &str = if is_current { "▶" } else { "" };
-                    let title = format!("{label} {}", entry.title);
+                    if is_current {
+                        let (rect, _) = ui.allocate_exact_size(
+                            egui::vec2(12.0, ui.available_height()),
+                            egui::Sense::hover(),
+                        );
+                        crate::icons::paint(
+                            ui.painter(),
+                            crate::icons::Icon::Play,
+                            rect,
+                            ui.style().visuals.strong_text_color(),
+                        );
+                    }
+                    let title = entry.title.clone();
                     let resp = ui
                         .selectable_label(is_current, title)
                         .on_hover_text(&entry.path);
@@ -114,7 +125,11 @@ pub fn panel(app: &mut NoirApp, ui: &mut Ui) {
                         play = true;
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button("✕").clicked() {
+                        if crate::icons::icon_button_small(
+                            ui,
+                            crate::icons::Icon::Close,
+                            app.tr.t("queue.remove"),
+                        ) {
                             remove = true;
                         }
                         if app.settings.playlist.show_duration {
@@ -139,13 +154,17 @@ pub fn panel(app: &mut NoirApp, ui: &mut Ui) {
                 });
                 // Reorder controls on hover row.
                 ui.horizontal(|ui| {
-                    if ui.small_button("↑").clicked() && i > 0 {
+                    if crate::icons::icon_button_small(ui, crate::icons::Icon::Up, "Move up")
+                        && i > 0
+                    {
                         app.queue.swap(i - 1, i);
                         if app.queue_index == Some(i) {
                             app.queue_index = Some(i - 1);
                         }
                     }
-                    if ui.small_button("↓").clicked() && i + 1 < app.queue.len() {
+                    if crate::icons::icon_button_small(ui, crate::icons::Icon::Down, "Move down")
+                        && i + 1 < app.queue.len()
+                    {
                         app.queue.swap(i, i + 1);
                         if app.queue_index == Some(i) {
                             app.queue_index = Some(i + 1);

@@ -983,7 +983,11 @@ impl NoirApp {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new(&message).small());
-                            if ui.small_button("✕").clicked() {
+                            if crate::icons::icon_button_small(
+                                ui,
+                                crate::icons::Icon::Close,
+                                "Dismiss",
+                            ) {
                                 self.error_message = None;
                             }
                         });

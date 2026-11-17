@@ -168,8 +168,12 @@ fn media_row(app: &mut NoirApp, ui: &mut Ui, item: &MediaItem) {
             queued = true;
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let star = if item.favorite { "★" } else { "☆" };
-            if ui.small_button(star).clicked() {
+            let star = if item.favorite {
+                crate::icons::Icon::StarFilled
+            } else {
+                crate::icons::Icon::StarOutline
+            };
+            if crate::icons::icon_button_small(ui, star, app.tr.t("lib.favorite")) {
                 lib_toggle_favorite(app, &path, !item.favorite);
             }
             if app.settings.playlist.show_duration {

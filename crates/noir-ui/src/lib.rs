@@ -7,6 +7,7 @@
 pub mod app;
 pub mod dialogs;
 pub mod i18n;
+pub mod icons;
 pub mod player;
 pub mod playlist_panel;
 pub mod screens;
