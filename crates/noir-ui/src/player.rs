@@ -55,7 +55,27 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     // Viewport background: pure black so letterboxing is seamless.
     ui.painter().rect_filled(viewport_rect, 0, Color32::BLACK);
 
-    if snapshot.current_path.is_none() {
+    let has_media = snapshot
+        .current_path
+        .as_deref()
+        .map(|p| !p.trim().is_empty())
+        .unwrap_or(false);
+
+    if let PlaybackState::Error(message) = &snapshot.state {
+        egui::Area::new(egui::Id::unique("viewport_error"))
+            .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
+            .order(egui::Order::Middle)
+            .show(ui.ctx(), |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.label(RichText::new(app.tr.t("state.error")).size(16.0).strong());
+                    ui.label(
+                        RichText::new(message)
+                            .size(12.0)
+                            .color(Color32::from_rgb(0xA1, 0xA1, 0xAA)),
+                    );
+                });
+            });
+    } else if !has_media {
         egui::Area::new(egui::Id::unique("viewport_hint"))
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .order(egui::Order::Middle)

@@ -17,12 +17,15 @@ use crate::engine::{EngineCommand, EngineSnapshot, PlaybackEngine};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use libmpv2::events::{Event, PropertyData};
 use libmpv2::{Format, Mpv};
-use libmpv2_sys::mpv_end_file_reason_MPV_END_FILE_REASON_EOF;
+use libmpv2_sys::{
+    mpv_end_file_reason_MPV_END_FILE_REASON_EOF, mpv_end_file_reason_MPV_END_FILE_REASON_ERROR,
+};
 use noir_core::events::PlaybackEvent;
 use noir_core::models::{ChapterInfo, MediaStats, TrackInfo, TrackKind};
 use noir_core::state::PlaybackState;
 use noir_core::NoirError;
 use parking_lot::Mutex;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,6 +36,8 @@ pub struct MpvEngine {
     event_tx: Mutex<Vec<Sender<PlaybackEvent>>>,
     shutdown: AtomicBool,
     last_position: Mutex<f64>,
+    last_open_path: Mutex<String>,
+    recent_errors: Mutex<VecDeque<String>>,
 }
 
 impl MpvEngine {
@@ -53,12 +58,15 @@ impl MpvEngine {
         {
             let mpv = mpv.lock();
             observe_core_properties(&mpv);
+            let _ = mpv.command("request-log-messages", &["warn"]);
         }
         Some(Self {
             mpv,
             event_tx: Mutex::new(Vec::new()),
             shutdown: AtomicBool::new(false),
             last_position: Mutex::new(0.0),
+            last_open_path: Mutex::new(String::new()),
+            recent_errors: Mutex::new(VecDeque::new()),
         })
     }
 
@@ -130,10 +138,44 @@ impl MpvEngine {
                             });
                             pending.push(PlaybackEvent::StateChanged(PlaybackState::Playing));
                         }
+                        Ok(Event::LogMessage {
+                            prefix,
+                            level,
+                            text,
+                            ..
+                        }) => {
+                            if matches!(level, "error" | "fatal") {
+                                warn!("mpv {prefix}: {text}");
+                                let mut errors = self.recent_errors.lock();
+                                errors.push_back(text.trim().to_string());
+                                if errors.len() > 8 {
+                                    errors.pop_front();
+                                }
+                            } else {
+                                debug!("mpv {prefix}: {text}");
+                            }
+                        }
                         Ok(Event::EndFile(reason)) => {
                             if reason == mpv_end_file_reason_MPV_END_FILE_REASON_EOF {
                                 pending.push(PlaybackEvent::EndOfFile);
                                 pending.push(PlaybackEvent::StateChanged(PlaybackState::Ended));
+                            } else if reason == mpv_end_file_reason_MPV_END_FILE_REASON_ERROR {
+                                let path = self.last_open_path.lock().clone();
+                                let detail = self
+                                    .recent_errors
+                                    .lock()
+                                    .pop_back()
+                                    .unwrap_or_else(|| "unknown mpv error".into());
+                                let message = if path.is_empty() {
+                                    format!("playback failed: {detail}")
+                                } else {
+                                    format!("cannot open {path}: {detail}")
+                                };
+                                warn!("mpv play failed: {message}");
+                                pending.push(PlaybackEvent::Error(message.clone()));
+                                pending.push(PlaybackEvent::StateChanged(PlaybackState::Error(
+                                    message,
+                                )));
                             } else {
                                 debug!("mpv EndFile reason={reason}");
                                 pending.push(PlaybackEvent::StateChanged(PlaybackState::Idle));
@@ -331,6 +373,8 @@ impl PlaybackEngine for MpvEngine {
                 path,
                 start_position,
             } => {
+                *self.last_open_path.lock() = path.clone();
+                self.recent_errors.lock().clear();
                 let pos_arg = start_position
                     .filter(|p| *p > 0.5)
                     .map(|p| format!("start={p}"))

@@ -1157,9 +1157,16 @@ impl eframe::App for NoirApp {
         // screen the child window is hidden so it can never overlap or cover
         // unrelated UI.
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let snapshot = self.controller.snapshot();
+        let has_media = snapshot
+            .current_path
+            .as_deref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false);
         let want_video = self.engine_attached
             && self.screen == Screen::Player
-            && self.controller.snapshot().current_path.is_some();
+            && has_media
+            && !matches!(snapshot.state, PlaybackState::Error(_));
         if !want_video {
             self.viewport_rect = None;
         }
