@@ -383,7 +383,11 @@ impl PlaybackEngine for MpvEngine {
                 let result = if pos_arg.is_empty() {
                     mpv.command("loadfile", &[&path, "replace"])
                 } else {
-                    mpv.command("loadfile", &[&path, "replace", &pos_arg])
+                    // Since mpv 0.38.0 the options list is the 4th argument;
+                    // the 3rd (insertion index) must be -1 when the 4th is
+                    // used, otherwise the command fails with an invalid
+                    // parameter error.
+                    mpv.command("loadfile", &[&path, "replace", "-1", &pos_arg])
                 };
                 if let Err(e) = result {
                     warn!("mpv: failed to open {path}: {e}");
