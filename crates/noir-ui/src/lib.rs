@@ -19,7 +19,10 @@ pub mod theme;
 pub use app::NoirApp;
 
 /// Launch the native window. Returns when the application exits.
-pub fn run() -> anyhow::Result<()> {
+/// Launch the native window. `initial_files` are media paths passed on the
+/// command line (file-association opens); they are queued and playback
+/// starts with the first one. Returns when the application exits.
+pub fn run(initial_files: Vec<String>) -> anyhow::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("NOIR Player")
@@ -30,7 +33,7 @@ pub fn run() -> anyhow::Result<()> {
     eframe::run_native(
         "NOIR Player",
         options,
-        Box::new(|cc| Ok(Box::new(NoirApp::new(cc)))),
+        Box::new(move |cc| Ok(Box::new(NoirApp::new_with_files(cc, &initial_files)))),
     )
     .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

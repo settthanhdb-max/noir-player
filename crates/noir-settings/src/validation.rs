@@ -46,12 +46,6 @@ pub fn validate(settings: &Settings) -> Vec<NoirError> {
             reason: "opacity must be between 0.5 and 1.0".into(),
         });
     }
-    if a.autohide_delay < 0.5 {
-        errors.push(NoirError::InvalidSetting {
-            key: "appearance.autohide_delay".into(),
-            reason: "auto-hide delay must be at least 0.5s".into(),
-        });
-    }
 
     let v = &settings.video;
     if !(0.5..=4.0).contains(&v.zoom) {
@@ -152,7 +146,6 @@ pub fn normalize(settings: &mut Settings) {
         .clamp_volume(settings.playback.default_volume);
     settings.appearance.ui_scale = settings.appearance.ui_scale.clamp(0.75, 2.0);
     settings.appearance.window_opacity = settings.appearance.window_opacity.clamp(0.5, 1.0);
-    settings.appearance.autohide_delay = settings.appearance.autohide_delay.clamp(0.5, 10.0);
     settings.video.zoom = settings.video.zoom.clamp(0.5, 4.0);
     settings.video.screenshot_quality = settings.video.screenshot_quality.clamp(50, 100);
     settings.subtitles.vertical_position = settings.subtitles.vertical_position.clamp(0.0, 100.0);

@@ -64,6 +64,9 @@ pub enum EngineCommand {
         pan_x: f64,
         pan_y: f64,
     },
+    SetPanScan {
+        value: f64,
+    },
     SetRotation {
         degrees: u32,
     },

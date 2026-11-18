@@ -456,6 +456,11 @@ impl PlaybackEngine for MpvEngine {
                 self.set_or_warn("video-pan-x", pan_x);
                 self.set_or_warn("video-pan-y", pan_y);
             }
+            SetPanScan { value } => {
+                // panscan=1 scales the video until it fills the window,
+                // cropping the overflow instead of letterboxing.
+                self.set_or_warn("panscan", value);
+            }
             SetRotation { degrees } => self.set_or_warn("video-rotate", degrees.to_string()),
             SetFlip {
                 horizontal,

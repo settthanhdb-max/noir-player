@@ -16,6 +16,35 @@ use noir_settings::schema::Settings;
 use noir_settings::SettingsStore;
 use std::time::{Duration, Instant};
 
+/// Staged values for the playback settings overlay; committed when the user
+/// presses Apply.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlaybackTweaks {
+    pub brightness: i32,
+    pub contrast: i32,
+    pub saturation: i32,
+    pub gamma: i32,
+    pub hue: i32,
+    pub speed: f64,
+    pub volume: u32,
+    pub muted: bool,
+}
+
+impl Default for PlaybackTweaks {
+    fn default() -> Self {
+        Self {
+            brightness: 0,
+            contrast: 0,
+            saturation: 0,
+            gamma: 0,
+            hue: 0,
+            speed: 1.0,
+            volume: 100,
+            muted: false,
+        }
+    }
+}
+
 pub struct NoirApp {
     pub settings: Settings,
     pub store: SettingsStore,
@@ -36,12 +65,16 @@ pub struct NoirApp {
     pub show_playlist: bool,
     pub show_info: bool,
     pub is_fullscreen: bool,
-    pub speed_menu_open: bool,
     pub scrub_position: Option<f64>,
     pub scrubbing: Option<f64>,
     pub viewport_rect: Option<Rect>,
     pub video_child_shown: bool,
-    pub last_mouse_activity: Instant,
+    pub playback_menu_open: bool,
+    pub settings_overlay_open: bool,
+    pub resume_after_overlay: bool,
+    pub fill_mode: usize,
+    pub tweaks: PlaybackTweaks,
+    pub ipc_open_file: std::path::PathBuf,
     pub osd_message: Option<(String, Instant)>,
     pub error_message: Option<String>,
     pub dialogs: FileDialogs,
@@ -115,12 +148,16 @@ impl NoirApp {
             show_playlist: false,
             show_info: false,
             is_fullscreen: false,
-            speed_menu_open: false,
             scrub_position: None,
             scrubbing: None,
             viewport_rect: None,
             video_child_shown: false,
-            last_mouse_activity: Instant::now(),
+            playback_menu_open: false,
+            settings_overlay_open: false,
+            resume_after_overlay: false,
+            fill_mode: 0,
+            tweaks: PlaybackTweaks::default(),
+            ipc_open_file: paths.data_dir.join("ipc_open.txt"),
             osd_message: None,
             error_message: None,
             dialogs: FileDialogs::default(),
@@ -243,22 +280,136 @@ impl NoirApp {
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
     }
 
-    pub fn mark_mouse_activity(&mut self) {
-        self.last_mouse_activity = Instant::now();
+    /// Entry point for files passed on the command line (file associations).
+    pub fn new_with_files(cc: &eframe::CreationContext<'_>, files: &[String]) -> Self {
+        let mut app = Self::new(cc);
+        if let Some(first) = files.first() {
+            app.load_playlist_into_queue(files);
+            app.open_and_play(first.clone());
+        }
+        app
     }
 
-    pub fn controls_visible(&self, snapshot: &noir_playback::engine::EngineSnapshot) -> bool {
-        if !self.settings.appearance.autohide_controls {
-            return true;
+    fn pause_for_overlay(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
+        if matches!(
+            snapshot.state,
+            PlaybackState::Playing | PlaybackState::Buffering
+        ) {
+            self.controller.execute(EngineCommand::Pause);
+            self.resume_after_overlay = true;
         }
-        if self.screen != Screen::Player {
-            return true;
+    }
+
+    /// Open the on-screen playback menu; video playback pauses while any
+    /// overlay is open because the native video surface must be hidden for
+    /// egui widgets over the video area to be visible and clickable.
+    pub fn open_playback_menu(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
+        if self.playback_menu_open || self.settings_overlay_open {
+            return;
         }
-        if snapshot.state != PlaybackState::Playing {
-            return true;
+        self.pause_for_overlay(snapshot);
+        self.playback_menu_open = true;
+    }
+
+    pub fn open_settings_overlay(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
+        self.pause_for_overlay(snapshot);
+        self.playback_menu_open = false;
+        let video = &self.settings.video;
+        self.tweaks = PlaybackTweaks {
+            brightness: video.brightness,
+            contrast: video.contrast,
+            saturation: video.saturation,
+            gamma: video.gamma,
+            hue: video.hue,
+            speed: snapshot.speed,
+            volume: snapshot.volume,
+            muted: snapshot.muted,
+        };
+        self.settings_overlay_open = true;
+    }
+
+    pub fn close_overlays(&mut self) {
+        self.playback_menu_open = false;
+        self.settings_overlay_open = false;
+        if self.resume_after_overlay {
+            self.resume_after_overlay = false;
+            self.controller.execute(EngineCommand::Play);
         }
-        self.last_mouse_activity.elapsed()
-            < Duration::from_secs_f32(self.settings.appearance.autohide_delay.max(0.5))
+    }
+
+    /// Commit the staged overlay values: video equalizer via the settings
+    /// pipeline, speed/volume/mute as direct engine commands.
+    pub fn apply_tweaks(&mut self) {
+        let t = self.tweaks;
+        {
+            let video = &mut self.settings.video;
+            video.brightness = t.brightness;
+            video.contrast = t.contrast;
+            video.saturation = t.saturation;
+            video.gamma = t.gamma;
+            video.hue = t.hue;
+        }
+        self.on_settings_changed();
+        let playback = self.settings.playback.clone();
+        self.controller
+            .set_speed(playback.clamp_speed(t.speed as f32) as f64);
+        self.controller.set_volume(playback.clamp_volume(t.volume));
+        self.controller
+            .execute(EngineCommand::SetMuted { muted: t.muted });
+    }
+
+    pub fn reset_tweaks(&mut self) {
+        let defaults = Settings::defaults();
+        self.tweaks = PlaybackTweaks {
+            brightness: defaults.video.brightness,
+            contrast: defaults.video.contrast,
+            saturation: defaults.video.saturation,
+            gamma: defaults.video.gamma,
+            hue: defaults.video.hue,
+            speed: defaults.playback.default_speed as f64,
+            volume: defaults.playback.default_volume,
+            muted: false,
+        };
+    }
+
+    /// Aspect/fill modes: 0 default, 1 fill (crop to window), then fixed
+    /// aspect overrides.
+    pub fn set_fill_mode(&mut self, mode: usize) {
+        self.fill_mode = mode;
+        let (aspect, panscan) = match mode {
+            0 => (None, 0.0),
+            1 => (None, 1.0),
+            2 => (Some("16:9".to_string()), 0.0),
+            3 => (Some("4:3".to_string()), 0.0),
+            4 => (Some("1:1".to_string()), 0.0),
+            _ => (Some("2.35:1".to_string()), 0.0),
+        };
+        self.controller.execute(EngineCommand::SetAspect { aspect });
+        self.controller
+            .execute(EngineCommand::SetPanScan { value: panscan });
+    }
+
+    /// Open media files handed off by a second instance (double-clicked from
+    /// Explorer while the player is already running).
+    pub fn process_open_requests(&mut self, ctx: &Context) {
+        let Ok(content) = std::fs::read_to_string(&self.ipc_open_file) else {
+            return;
+        };
+        let _ = std::fs::remove_file(&self.ipc_open_file);
+        let files: Vec<String> = content
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect();
+        if files.is_empty() {
+            return;
+        }
+        self.load_playlist_into_queue(&files);
+        if let Some(first) = files.first() {
+            self.open_and_play(first.clone());
+        }
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
     }
 
     pub fn rescan_all(&mut self) {
@@ -674,6 +825,9 @@ impl NoirApp {
                 self.open_and_play(first);
             }
         }
+
+        // Files handed off by a second instance.
+        self.process_open_requests(ctx);
 
         // Confirm-exit intercept.
         let close_requested = ctx.input(|i| i.viewport().close_requested());
@@ -1166,7 +1320,9 @@ impl eframe::App for NoirApp {
         let want_video = self.engine_attached
             && self.screen == Screen::Player
             && has_media
-            && !matches!(snapshot.state, PlaybackState::Error(_));
+            && !matches!(snapshot.state, PlaybackState::Error(_))
+            && !self.playback_menu_open
+            && !self.settings_overlay_open;
         if !want_video {
             self.viewport_rect = None;
         }

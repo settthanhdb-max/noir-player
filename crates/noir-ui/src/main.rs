@@ -39,5 +39,25 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!(log_file = %paths.log_file().display(), "starting NOIR Player");
 
-    noir_ui::run()
+    let files: Vec<String> = std::env::args().skip(1).collect();
+
+    // Single instance on Windows release: a double-clicked media file while
+    // the player is already running is handed off to the running instance.
+    #[cfg(all(windows, not(debug_assertions)))]
+    let _guard = match noir_platform::single_instance::acquire("Local\\noir-player-singleton") {
+        Ok(g) => Some(g),
+        Err(()) => {
+            if !files.is_empty() {
+                match noir_platform::single_instance::signal_open_request(&paths.data_dir, &files) {
+                    Ok(()) => tracing::info!("handed {files:?} to the running instance"),
+                    Err(e) => tracing::error!("failed to hand off files: {e}"),
+                }
+            }
+            return Ok(());
+        }
+    };
+    #[cfg(not(all(windows, not(debug_assertions))))]
+    let _guard = None::<noir_platform::single_instance::InstanceGuard>;
+
+    noir_ui::run(files)
 }

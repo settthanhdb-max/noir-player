@@ -11,13 +11,22 @@ customizable.
 │ NOIR   Big Buck Bunny.mkv            Playing      Home  ...  │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│                    video viewport (letterboxed)              │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│ ◀◀  ▶  ■  ▶▶   ──────●─────────────   1:05 / 9:56            │
-│ V ──────●──  1.00x  ≡  i  ⛶                                  │
+│            video viewport (letterboxed, chrome-free)         │
+│                                          ┌───────────────────┐│
+│      right click → on-screen menu        │ Playback settings ││
+│                                          │  visuals/speed/…  ││
+│                                          └───────────────────┘│
 └──────────────────────────────────────────────────────────────┘
+
 ```
+
+During playback the video runs chrome-free: **no taskbar and no auto-hiding
+control bar**. On-screen controls open on demand — right click the video to
+open the playback menu (transport, timeline, fullscreen, scaling/fill modes,
+speed presets) and choose **Playback settings…** for a visuals/speed/audio
+dialog with an explicit **Apply Settings** button. Keyboard shortcuts keep
+working. A Windows installer with file associations is available — see
+[BUILDING.md](BUILDING.md).
 
 ## Highlights
 
@@ -26,7 +35,7 @@ customizable.
 - **Explicit playback state machine** — `Idle → Loading → Playing ⇄ Paused →
   Buffering → Ended / Error`, with the UI reacting to engine events instead of
   polling decoder internals.
-- **179 settings across 10 categories**, generated from typed descriptors with
+- **176 settings across 10 categories**, generated from typed descriptors with
   search, capability gating, reset, import/export, validation and migration.
 - **Fully customizable keyboard shortcuts** with conflict detection and
   import/export.
@@ -56,6 +65,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design,
 ```sh
 cargo build --release
 ```
+During playback the video runs chrome-free: **no taskbar and no auto-hiding
+control bar**. On-screen controls open on demand — right click the video to open the
+playback menu (transport, timeline, fullscreen, scaling/fill modes, speed
+presets) and choose **Playback settings…** for a visuals/speed/audio dialog
+with an explicit **Apply Settings** button. Keyboard shortcuts keep working.
+
 
 The mpv backend requires libmpv (`libmpv-dev` / `mpv-devel` / an mpv SDK).
 Build without it — using the honest built-in mock engine — with:

@@ -133,6 +133,45 @@ cargo build --release --target x86_64-pc-windows-gnu
 The mpv feature additionally needs a Windows build of `libmpv-2.dll` and a
 matching import library for the GNU linker.
 
+## Windows installer (single .exe, file associations)
+
+The repository ships an [Inno Setup](https://jrsoftware.org/isinfo.php) script
+that produces a per-user installer (`noir-player-setup.exe`) which installs
+the app, creates Start Menu shortcuts and (optionally) registers NOIR Player
+as the default player for common media types (MP4, MKV, MP3, FLAC, ...).
+
+```sh
+cargo build --release
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\noir-player.iss
+# output: packaging\windows\Output\noir-player-setup.exe
+```
+
+Notes:
+
+- Per-user install to `%LOCALAPPDATA%\NOIR Player`; **no administrator rights
+  required** (associations are written under `HKCU\Software\Classes`).
+- After changing default-app choices, Explorer may take a moment (or a
+  sign-out) to refresh the icons; `Settings > Apps > Default apps` always lets
+  you confirm the current default.
+- Uninstalling keeps user data (history, playlists, settings) under
+  `%APPDATA%\noir\noir-player`.
+
+A portable `target\release\noir-player.exe` also works standalone when
+`libmpv-2.dll` is available on `PATH` or next to the exe.
+
+## Command line
+
+Media files passed on the command line are queued and played:
+
+```sh
+noir-player.exe "D:\Movies\film.mkv" "D:\Music\track.mp3"
+```
+
+Files are added to the queue and the first is opened immediately. With a
+single instance running (Windows release builds), opening a file again —
+e.g. double-clicking in Explorer — forwards it to the running instance
+instead of starting a new process.
+
 ## Release profile
 
 The workspace release profile is already tuned:
