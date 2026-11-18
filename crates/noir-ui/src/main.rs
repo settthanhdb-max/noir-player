@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     #[cfg(all(windows, not(debug_assertions)))]
     let _guard = match noir_platform::single_instance::acquire("Local\\noir-player-singleton") {
         Ok(g) => Some(g),
-        Err(()) => {
+        Err(_) => {
             if !files.is_empty() {
                 match noir_platform::single_instance::signal_open_request(&paths.data_dir, &files) {
                     Ok(()) => tracing::info!("handed {files:?} to the running instance"),

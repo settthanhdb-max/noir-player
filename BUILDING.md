@@ -140,9 +140,11 @@ that produces a per-user installer (`noir-player-setup.exe`) which installs
 the app, creates Start Menu shortcuts and (optionally) registers NOIR Player
 as the default player for common media types (MP4, MKV, MP3, FLAC, ...).
 
-```sh
+PowerShell needs the call operator (`&`) for quoted executables:
+
+```powershell
 cargo build --release
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\noir-player.iss
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\noir-player.iss
 # output: packaging\windows\Output\noir-player-setup.exe
 ```
 
