@@ -50,6 +50,11 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                 ui.add_space(4.0);
                 ui.checkbox(&mut show_advanced, tr.t("set.advanced"));
                 ui.separator();
+                ui.label(
+                    RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                        .small()
+                        .color(Color32::from_rgb(0x71, 0x71, 0x7A)),
+                );
                 ScrollArea::vertical().show(ui, |ui| {
                     for (i, name) in category_names.iter().enumerate() {
                         let label = category_label(name, &tr);
