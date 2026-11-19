@@ -1,10 +1,11 @@
-; NOIR Player — Windows installer (Inno Setup 6).
+; NOIR Player -- Windows installer (Inno Setup 6).
 ;
 ; Build on Windows:
 ;   1. cargo build --release            (in the repo root)
 ;   2. Download Inno Setup: https://jrsoftware.org/isdl.php
-;   3. "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\noir-player.iss
-;      → output: packaging\windows\Output\noir-player-setup.exe
+;   3. & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\noir-player.iss
+;      (from PowerShell -- the & call operator is required)
+;      -> output: packaging\windows\Output\noir-player-setup.exe
 ;
 ; The installer is per-user (no admin rights required): it installs to
 ; %LOCALAPPDATA%\NOIR Player and registers file associations under
@@ -34,7 +35,6 @@ ChangesAssociations=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "vietnamese"; MessagesFile: "compiler:Languages\Vietnamese.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -53,36 +53,36 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Registry]
 ; Per-user class identifiers. Doubled quotes inside ValueData escape Inno strings.
-Name: "hkcu"; Subkey: "Software\Classes\NoirPlayer.media"; ValueType: string; ValueName: ""; \
+Root: HKCU; Subkey: "Software\Classes\NoirPlayer.media"; ValueType: string; ValueName: ""; \
     ValueData: "NOIR Player Media"; Tasks: assoc; Flags: uninsdeletekey
-Name: "hkcu"; Subkey: "Software\Classes\NoirPlayer.media\DefaultIcon"; ValueType: string; ValueName: ""; \
+Root: HKCU; Subkey: "Software\Classes\NoirPlayer.media\DefaultIcon"; ValueType: string; ValueName: ""; \
     ValueData: "{app}\{#MyAppExeName},0"; Tasks: assoc; Flags: uninsdeletekey
-Name: "hkcu"; Subkey: "Software\Classes\NoirPlayer.media\shell\open\command"; ValueType: string; ValueName: ""; \
+Root: HKCU; Subkey: "Software\Classes\NoirPlayer.media\shell\open\command"; ValueType: string; ValueName: ""; \
     ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: assoc; Flags: uninsdeletekey
 
-Name: "hkcu"; Subkey: "Software\Classes\.mp4"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.m4v"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.mkv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.avi"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.mov"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.webm"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.wmv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.flv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.mpg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.mpeg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.ts"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.m2ts"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.mp3"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.m4a"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.aac"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.flac"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.wav"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.ogg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.opus"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
-Name: "hkcu"; Subkey: "Software\Classes\.wma"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mp4"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.m4v"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mkv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.avi"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mov"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.webm"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.wmv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.flv"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mpg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mpeg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.ts"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.m2ts"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.mp3"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.m4a"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.aac"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.flac"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.wav"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.ogg"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.opus"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.wma"; ValueType: string; ValueName: ""; ValueData: "NoirPlayer.media"; Tasks: assoc; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '')}}"; \
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch NOIR Player"; \
     Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

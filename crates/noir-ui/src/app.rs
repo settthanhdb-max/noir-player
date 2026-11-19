@@ -69,9 +69,9 @@ pub struct NoirApp {
     pub scrubbing: Option<f64>,
     pub viewport_rect: Option<Rect>,
     pub video_child_shown: bool,
-    pub playback_menu_open: bool,
     pub settings_overlay_open: bool,
     pub resume_after_overlay: bool,
+    pub last_mouse_activity: Instant,
     pub fill_mode: usize,
     pub tweaks: PlaybackTweaks,
     pub ipc_open_file: std::path::PathBuf,
@@ -152,9 +152,9 @@ impl NoirApp {
             scrubbing: None,
             viewport_rect: None,
             video_child_shown: false,
-            playback_menu_open: false,
             settings_overlay_open: false,
             resume_after_overlay: false,
+            last_mouse_activity: Instant::now(),
             fill_mode: 0,
             tweaks: PlaybackTweaks::default(),
             ipc_open_file: paths.data_dir.join("ipc_open.txt"),
@@ -300,20 +300,34 @@ impl NoirApp {
         }
     }
 
-    /// Open the on-screen playback menu; video playback pauses while any
-    /// overlay is open because the native video surface must be hidden for
-    /// egui widgets over the video area to be visible and clickable.
-    pub fn open_playback_menu(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
-        if self.playback_menu_open || self.settings_overlay_open {
-            return;
-        }
-        self.pause_for_overlay(snapshot);
-        self.playback_menu_open = true;
+    /// Any pointer movement over the player resets the auto-hide timer so the
+    /// control bar reappears while the mouse is in use.
+    pub fn mark_mouse_activity(&mut self) {
+        self.last_mouse_activity = Instant::now();
     }
 
+    /// Whether the playback control bar should currently be drawn. It hides
+    /// after `autohide_delay` seconds without mouse movement while a video
+    /// plays, and always shows while idle/paused or when an overlay is open.
+    pub fn controls_visible(&self, snapshot: &noir_playback::engine::EngineSnapshot) -> bool {
+        if !self.settings.appearance.autohide_controls || self.settings_overlay_open {
+            return true;
+        }
+        if self.screen != Screen::Player {
+            return true;
+        }
+        if snapshot.state != PlaybackState::Playing {
+            return true;
+        }
+        self.last_mouse_activity.elapsed()
+            < Duration::from_secs_f32(self.settings.appearance.autohide_delay.max(0.5))
+    }
+
+    /// Open the playback settings overlay; video playback pauses while the
+    /// overlay is open because the native video surface must be hidden for
+    /// egui widgets over the video area to be visible and clickable.
     pub fn open_settings_overlay(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
         self.pause_for_overlay(snapshot);
-        self.playback_menu_open = false;
         let video = &self.settings.video;
         self.tweaks = PlaybackTweaks {
             brightness: video.brightness,
@@ -329,7 +343,6 @@ impl NoirApp {
     }
 
     pub fn close_overlays(&mut self) {
-        self.playback_menu_open = false;
         self.settings_overlay_open = false;
         if self.resume_after_overlay {
             self.resume_after_overlay = false;
@@ -1321,7 +1334,6 @@ impl eframe::App for NoirApp {
             && self.screen == Screen::Player
             && has_media
             && !matches!(snapshot.state, PlaybackState::Error(_))
-            && !self.playback_menu_open
             && !self.settings_overlay_open;
         if !want_video {
             self.viewport_rect = None;

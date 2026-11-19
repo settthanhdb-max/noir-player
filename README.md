@@ -7,25 +7,27 @@ Windows 10/11 x64, written in Rust. It pairs the playback power of
 customizable.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ NOIR   Big Buck Bunny.mkv            Playing      Home  ...  │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│            video viewport (letterboxed, chrome-free)         │
-│                                          ┌───────────────────┐│
-│      right click → on-screen menu        │ Playback settings ││
-│                                          │  visuals/speed/…  ││
-│                                          └───────────────────┘│
-└──────────────────────────────────────────────────────────────┘
-
++------------------------------------------------------------------------------+
+| NOIR   Big Buck Bunny.mkv            Playing      Home  ...                  |
++------------------------------------------------------------------------------+
+|                                                                              |
+|                     video viewport (letterboxed)                             |
+|                                                                              |
+|         control bar auto-hides after 10 s of mouse inactivity                |
++------------------------------------------------------------------------------+
+| ------------------*------------------------------    3:24 / 10:56             |
+|  |<  [>]  []  >| |  [+]------o------  |  [Playback settings..]  [ii] [Full] |
++------------------------------------------------------------------------------+
 ```
 
-During playback the video runs chrome-free: **no taskbar and no auto-hiding
-control bar**. On-screen controls open on demand — right click the video to
-open the playback menu (transport, timeline, fullscreen, scaling/fill modes,
-speed presets) and choose **Playback settings…** for a visuals/speed/audio
-dialog with an explicit **Apply Settings** button. Keyboard shortcuts keep
-working. A Windows installer with file associations is available — see
+During playback a single **auto-hiding control bar** sits below the video:
+move the mouse and the timeline and transport controls reappear immediately;
+stop moving for 10 seconds (configurable in Appearance → Auto-hide delay) and
+the bar hides so nothing distracts from the film. There are no taskbars and
+no on-screen pop-up menus — right-click is intentionally inert. The bar's
+**Playback settings…** button opens a visuals/speed/scaling/audio dialog
+with an explicit **Apply Settings** button. Keyboard shortcuts keep working.
+A Windows installer with file associations is available — see
 [BUILDING.md](BUILDING.md).
 
 ## Highlights
@@ -35,7 +37,7 @@ working. A Windows installer with file associations is available — see
 - **Explicit playback state machine** — `Idle → Loading → Playing ⇄ Paused →
   Buffering → Ended / Error`, with the UI reacting to engine events instead of
   polling decoder internals.
-- **176 settings across 10 categories**, generated from typed descriptors with
+- **179 settings across 10 categories**, generated from typed descriptors with
   search, capability gating, reset, import/export, validation and migration.
 - **Fully customizable keyboard shortcuts** with conflict detection and
   import/export.
@@ -65,10 +67,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design,
 ```sh
 cargo build --release
 ```
-During playback the video runs chrome-free: **no taskbar and no auto-hiding
-control bar**. On-screen controls open on demand — right click the video to open the
-playback menu (transport, timeline, fullscreen, scaling/fill modes, speed
-presets) and choose **Playback settings…** for a visuals/speed/audio dialog
+During playback a single **auto-hiding control bar** sits below the video:
+move the mouse and the timeline and controls reappear immediately; stop
+moving for 10 seconds (configurable in Appearance) and the bar hides. No
+taskbars and no on-screen pop-up menus — right-click is inert. The bar's
+**Playback settings…** button opens a visuals/speed/scaling/audio dialog
 with an explicit **Apply Settings** button. Keyboard shortcuts keep working.
 
 

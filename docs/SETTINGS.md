@@ -1,6 +1,6 @@
 # Settings Reference
 
-NOIR Player has **176 settings across 10 categories**, all defined as typed
+NOIR Player has **179 settings across 10 categories**, all defined as typed
 descriptors in `noir-settings` and rendered automatically in the UI. Settings
 persist to `settings.toml` (versioned, migrated) in the platform config
 directory and are validated on load and on save.

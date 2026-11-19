@@ -1,5 +1,7 @@
-//! Player screen: full-bleed video viewport with an on-screen menu (right
-//! click) and a playback settings overlay (visuals, speed, audio, Apply).
+//! Player screen: video viewport with an auto-hiding control bar (timeline,
+//! transport, volume, settings) and a playback settings overlay (visuals,
+//! speed, audio, Apply). Right-click does nothing by design: menus over the
+//! video made watching while adjusting impossible.
 
 use crate::app::NoirApp;
 use crate::theme::Palette;
@@ -12,7 +14,15 @@ type EngineSnapshot = noir_playback::engine::EngineSnapshot;
 pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     let appearance = app.settings.appearance.clone();
     let snapshot = app.controller.snapshot();
-    let overlay_open = app.playback_menu_open || app.settings_overlay_open;
+    let overlay_open = app.settings_overlay_open;
+    let controls_visible = app.controls_visible(&snapshot);
+
+    // Any pointer movement on the player screen resets the auto-hide timer, so
+    // the control bar reappears as soon as the mouse moves and hides again
+    // after the configured delay (default 10 s) of inactivity.
+    if ui.input(|i| i.pointer.delta().length_sq() > 0.0) {
+        app.mark_mouse_activity();
+    }
 
     let avail = ui.available_size();
     let show_info = app.show_info && appearance.show_info_overlay;
@@ -26,14 +36,16 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     } else {
         0.0
     };
+    // The strip below the viewport is always reserved (when controls are
+    // enabled) so the video rect does not jump when the bar hides; only the
+    // bar contents are toggled.
+    let control_strip_height = if appearance.show_controls { 64.0 } else { 0.0 };
     let info_at_bottom = show_info && appearance.osd_position >= 2;
-    let viewport_height = (avail.y - info_strip_height).max(120.0);
+    let viewport_height = (avail.y - info_strip_height - control_strip_height).max(120.0);
 
-    // During playback the video surface fills the viewport: no persistent and
-    // no auto-hiding control bar. Controls live in the on-screen menu (right
-    // click) and the playback settings overlay; while those are open the
-    // native video surface is hidden and playback paused, so egui widgets are
-    // fully visible and clickable.
+    // The embedded mpv surface only ever covers the viewport rect: the info
+    // and control panels live in dedicated strips outside it and can never be
+    // covered by the native video window.
     if show_info && !info_at_bottom {
         info_strip(ui, avail.x, info_strip_height, &info_text);
     }
@@ -88,29 +100,31 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
 
     app.viewport_rect = Some(viewport_rect);
 
-    // Viewport interactions: right click opens the on-screen menu, click
-    // toggles pause, double click toggles fullscreen; any click on the video
-    // closes an open overlay.
+    // Viewport interactions: movement over the video keeps the control bar
+    // visible, left click toggles pause (or closes an open overlay) and
+    // double click toggles fullscreen. Right click is intentionally inert so
+    // stray clicks never interrupt viewing.
     let interaction = ui.interact(
         viewport_rect,
         egui::Id::unique("video_viewport"),
         Sense::click_and_drag(),
     );
-    if interaction.secondary_clicked() {
-        if overlay_open {
-            app.close_overlays();
-        } else {
-            app.open_playback_menu(&snapshot);
-        }
-    } else if interaction.clicked() {
+    if interaction.hovered() {
+        app.mark_mouse_activity();
+    }
+    if interaction.clicked() {
+        app.mark_mouse_activity();
         if overlay_open {
             app.close_overlays();
         } else {
             app.controller.toggle_play();
         }
     }
-    if interaction.double_clicked() && !overlay_open {
-        app.toggle_fullscreen(ui.ctx());
+    if interaction.double_clicked() {
+        app.mark_mouse_activity();
+        if !overlay_open {
+            app.toggle_fullscreen(ui.ctx());
+        }
     }
 
     // Information strip (top or bottom depending on the OSD position setting).
@@ -118,31 +132,33 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
         info_strip(ui, avail.x, info_strip_height, &info_text);
     }
 
-    if app.playback_menu_open {
-        playback_menu(app, ui.ctx(), &snapshot);
+    // Control bar below the viewport, outside the native video rect. It stays
+    // hidden while the mouse rests during playback and reappears on movement.
+    if appearance.show_controls {
+        let (_, strip) =
+            ui.allocate_exact_size(Vec2::new(avail.x, control_strip_height), Sense::hover());
+        if strip.hovered() {
+            app.mark_mouse_activity();
+        }
+        if controls_visible {
+            let colors = Palette::Dark.colors();
+            egui::Frame::default()
+                .fill(colors.surface)
+                .inner_margin(egui::Margin::symmetric(10, 5))
+                .stroke(egui::Stroke::new(1.0, colors.border))
+                .show(ui, |ui| control_panel(app, ui, &snapshot));
+        }
     }
+
     if app.settings_overlay_open {
         settings_overlay(app, ui.ctx());
     }
 }
 
-/// The on-screen menu shown while media plays (right click on the video).
-fn playback_menu(app: &mut NoirApp, ctx: &egui::Context, snapshot: &EngineSnapshot) {
-    egui::Area::new(egui::Id::unique("playback_menu"))
-        .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
-        .order(egui::Order::Foreground)
-        .show(ctx, |ui| {
-            egui::Frame::default()
-                .fill(Palette::Dark.colors().elevated)
-                .stroke(egui::Stroke::new(1.0, Palette::Dark.colors().border))
-                .corner_radius(CornerRadius::same(4))
-                .inner_margin(egui::Margin::same(12))
-                .show(ui, |ui| menu_body(app, ui, snapshot));
-        });
-}
-
-fn menu_body(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
-    // Timeline and time readout.
+/// The control bar below the video: timeline, transport, volume, speed and
+/// the entry point into the playback settings overlay.
+fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
+    // Timeline row.
     let duration = snapshot.duration.max(0.0);
     let position = app.scrub_position.unwrap_or(snapshot.position);
     let mut scrub = app.scrub_position;
@@ -154,91 +170,94 @@ fn menu_body(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
                 .execute(noir_playback::engine::EngineCommand::SeekAbsolute { position: target });
             app.scrubbing = None;
             app.scrub_position = None;
+            app.mark_mouse_activity();
         }
     }
-    ui.horizontal(|ui| {
-        ui.monospace(format_time(position));
-        ui.label(RichText::new("/").color(Color32::from_rgb(0x71, 0x71, 0x7A)));
-        ui.monospace(format_time(duration));
-    });
 
-    ui.separator();
+    let playback = app.settings.playback.clone();
+    let max_volume = match app.settings.playback.max_volume_policy {
+        1 => 130u32,
+        2 => 200,
+        _ => 100,
+    };
 
-    // Transport row.
+    // Transport and adjustment row.
     ui.horizontal(|ui| {
-        if crate::icons::icon_button(ui, crate::icons::Icon::Prev, app.tr.t("ctrl.prev")) {
+        let tr = app.tr;
+        if crate::icons::icon_button(ui, crate::icons::Icon::Prev, tr.t("ctrl.prev")) {
             app.play_previous();
         }
         let (icon, tip) = match snapshot.state {
             PlaybackState::Playing | PlaybackState::Buffering => {
-                (crate::icons::Icon::Pause, app.tr.t("ctrl.pause"))
+                (crate::icons::Icon::Pause, tr.t("ctrl.pause"))
             }
-            _ => (crate::icons::Icon::Play, app.tr.t("ctrl.play")),
+            _ => (crate::icons::Icon::Play, tr.t("ctrl.play")),
         };
         if crate::icons::icon_button(ui, icon, tip) {
             app.controller.toggle_play();
         }
-        if crate::icons::icon_button(ui, crate::icons::Icon::Stop, app.tr.t("ctrl.stop")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Stop, tr.t("ctrl.stop")) {
             app.controller.stop();
         }
-        if crate::icons::icon_button(ui, crate::icons::Icon::Next, app.tr.t("ctrl.next")) {
+        if crate::icons::icon_button(ui, crate::icons::Icon::Next, tr.t("ctrl.next")) {
             app.play_next();
         }
+
         ui.separator();
+
+        ui.monospace(format_time(position));
+        ui.label(RichText::new("/").color(Color32::from_rgb(0x71, 0x71, 0x7A)));
+        ui.monospace(format_time(duration));
+
+        ui.separator();
+
+        let (mute_icon, mute_tip) = if snapshot.muted {
+            (crate::icons::Icon::Muted, tr.t("ctrl.unmute"))
+        } else {
+            (crate::icons::Icon::Volume, tr.t("ctrl.mute"))
+        };
+        if crate::icons::icon_button(ui, mute_icon, mute_tip) {
+            app.controller.toggle_mute();
+        }
+        let mut volume = snapshot.volume as f32;
+        let vol = ui
+            .allocate_ui(egui::vec2(90.0, 20.0), |ui| {
+                ui.add(egui::Slider::new(&mut volume, 0.0..=max_volume as f32).show_value(false))
+            })
+            .inner;
+        if vol.changed() {
+            app.controller
+                .set_volume(playback.clamp_volume(volume as u32));
+        }
+
+        ui.separator();
+
+        // Playback settings: visuals, speed, audio — with Apply Settings.
+        if ui
+            .button(RichText::new(app.tr.t("menu.playback_settings")).small())
+            .clicked()
+        {
+            app.open_settings_overlay(snapshot);
+        }
+
+        ui.separator();
+
+        if crate::icons::icon_button(ui, crate::icons::Icon::Playlist, tr.t("ctrl.playlist")) {
+            app.show_playlist = !app.show_playlist;
+        }
+        if crate::icons::icon_button(ui, crate::icons::Icon::Info, tr.t("ctrl.info")) {
+            app.show_info = !app.show_info;
+        }
         let (fs_icon, fs_tip) = if app.is_fullscreen {
             (
                 crate::icons::Icon::ExitFullscreen,
-                app.tr.t("ctrl.exit_fullscreen"),
+                tr.t("ctrl.exit_fullscreen"),
             )
         } else {
-            (crate::icons::Icon::Fullscreen, app.tr.t("ctrl.fullscreen"))
+            (crate::icons::Icon::Fullscreen, tr.t("ctrl.fullscreen"))
         };
         if crate::icons::icon_button(ui, fs_icon, fs_tip) {
             app.toggle_fullscreen(ui.ctx());
-        }
-        if ui
-            .selectable_label(app.show_info, app.tr.t("menu.media_info"))
-            .clicked()
-        {
-            app.show_info = !app.show_info;
-        }
-    });
-
-    ui.separator();
-
-    // Scaling / fill modes.
-    ui.label(RichText::new(app.tr.t("menu.scaling")).small());
-    ui.horizontal(|ui| {
-        let modes = ["Default", "Fill", "16:9", "4:3", "1:1", "2.35:1"];
-        for (i, label) in modes.iter().enumerate() {
-            if ui.selectable_label(app.fill_mode == i, *label).clicked() {
-                app.set_fill_mode(i);
-            }
-        }
-    });
-
-    // Playback speed presets.
-    ui.label(RichText::new(app.tr.t("menu.speed")).small());
-    ui.horizontal(|ui| {
-        for preset in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0] {
-            if ui
-                .selectable_label(false, format!("{preset:.2}x"))
-                .clicked()
-            {
-                let clamped = app.settings.playback.clamp_speed(preset);
-                app.controller.set_speed(clamped as f64);
-            }
-        }
-    });
-
-    ui.separator();
-
-    ui.horizontal(|ui| {
-        if ui.button(app.tr.t("menu.playback_settings")).clicked() {
-            app.open_settings_overlay(snapshot);
-        }
-        if ui.button(app.tr.t("menu.close")).clicked() {
-            app.close_overlays();
         }
     });
 }
@@ -284,6 +303,18 @@ fn overlay_body(app: &mut NoirApp, ui: &mut Ui) {
         let t = &mut app.tweaks;
         ui.add(egui::Slider::new(&mut t.speed, 0.25..=4.0).text("Playback speed"));
     }
+
+    // Scaling / fill modes apply immediately when clicked.
+    ui.separator();
+    ui.label(RichText::new(app.tr.t("menu.scaling")).small());
+    ui.horizontal(|ui| {
+        let modes = ["Default", "Fill", "16:9", "4:3", "1:1", "2.35:1"];
+        for (i, label) in modes.iter().enumerate() {
+            if ui.selectable_label(app.fill_mode == i, *label).clicked() {
+                app.set_fill_mode(i);
+            }
+        }
+    });
 
     ui.separator();
 

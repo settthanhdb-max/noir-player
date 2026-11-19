@@ -26,6 +26,10 @@ pub struct AppearanceSettings {
     pub animation_speed: f32,
     pub show_logo: bool,
     pub show_info_overlay: bool,
+    pub show_controls: bool,
+    pub autohide_controls: bool,
+    /// Seconds of mouse inactivity before the control bar hides.
+    pub autohide_delay: f32,
     /// Index into [`STARTUP_SCREEN_OPTIONS`].
     pub startup_screen: usize,
     pub fullscreen_ui: bool,
@@ -53,6 +57,9 @@ impl Default for AppearanceSettings {
             animation_speed: 1.0,
             show_logo: true,
             show_info_overlay: true,
+            show_controls: true,
+            autohide_controls: true,
+            autohide_delay: 10.0,
             startup_screen: 1,
             fullscreen_ui: false,
             osd_visible: true,
@@ -206,6 +213,32 @@ impl AppearanceSettings {
                 "Display technical media information over the video.",
                 SettingKind::Toggle,
                 SettingValue::Bool(&mut self.show_info_overlay),
+            ),
+            SettingEntry::new(
+                "appearance.show_controls",
+                "Show playback controls",
+                "Display the playback control bar below the video.",
+                SettingKind::Toggle,
+                SettingValue::Bool(&mut self.show_controls),
+            ),
+            SettingEntry::new(
+                "appearance.autohide_controls",
+                "Auto-hide controls",
+                "Hide the control bar while the mouse is inactive during playback.",
+                SettingKind::Toggle,
+                SettingValue::Bool(&mut self.autohide_controls),
+            ),
+            SettingEntry::new(
+                "appearance.autohide_delay",
+                "Auto-hide delay",
+                "Seconds of mouse inactivity before the control bar hides.",
+                SettingKind::Slider {
+                    min: 0.5,
+                    max: 10.0,
+                    step: 0.5,
+                    unit: "s",
+                },
+                SettingValue::F32(&mut self.autohide_delay),
             ),
             SettingEntry::new(
                 "appearance.startup_screen",
