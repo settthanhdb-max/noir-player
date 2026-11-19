@@ -91,3 +91,34 @@ pub fn position_video_child(
 ) -> bool {
     false
 }
+
+/// Current mouse cursor position in the client coordinates of `parent`, when
+/// the platform can provide it.
+///
+/// While the embedded native video child is visible, Windows delivers mouse
+/// messages to that child window, not to the egui window — so the UI cannot
+/// rely on `Context::input` pointer deltas to detect movement over the video.
+/// Polling the OS cursor position makes "mouse moved" detection work anywhere
+/// over the player window.
+///
+/// Returns `None` when the platform does not support cursor polling or the
+/// call fails.
+#[cfg(windows)]
+pub fn cursor_client_pos(parent: *mut std::ffi::c_void) -> Option<(i32, i32)> {
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::Graphics::Gdi::ScreenToClient;
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+    unsafe {
+        let mut pt = POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut pt) == 0 {
+            return None;
+        }
+        ScreenToClient(parent as windows_sys::Win32::Foundation::HWND, &mut pt);
+        Some((pt.x, pt.y))
+    }
+}
+
+#[cfg(not(windows))]
+pub fn cursor_client_pos(_parent: *mut std::ffi::c_void) -> Option<(i32, i32)> {
+    None
+}

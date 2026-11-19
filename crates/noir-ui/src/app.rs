@@ -72,6 +72,10 @@ pub struct NoirApp {
     pub settings_overlay_open: bool,
     pub resume_after_overlay: bool,
     pub last_mouse_activity: Instant,
+    /// Last OS cursor position seen over the player (physical client px).
+    /// egui never receives pointer deltas over the native video child, so
+    /// movement detection there is done by comparing polled positions.
+    last_video_cursor: Option<(i32, i32)>,
     pub fill_mode: usize,
     pub tweaks: PlaybackTweaks,
     pub ipc_open_file: std::path::PathBuf,
@@ -155,6 +159,7 @@ impl NoirApp {
             settings_overlay_open: false,
             resume_after_overlay: false,
             last_mouse_activity: Instant::now(),
+            last_video_cursor: None,
             fill_mode: 0,
             tweaks: PlaybackTweaks::default(),
             ipc_open_file: paths.data_dir.join("ipc_open.txt"),
@@ -304,6 +309,35 @@ impl NoirApp {
     /// control bar reappears while the mouse is in use.
     pub fn mark_mouse_activity(&mut self) {
         self.last_mouse_activity = Instant::now();
+    }
+
+    /// Poll the OS cursor position and treat movement inside the video
+    /// viewport as user activity. Required because WM_MOUSEMOVE over the
+    /// embedded mpv child window goes to the child, so egui's own pointer
+    /// deltas stay at zero there. Movement elsewhere on the player window is
+    /// already detected through egui input, and movement in other programs
+    /// must not resurrect the control bar.
+    fn poll_video_cursor_activity(
+        &mut self,
+        parent: *mut std::ffi::c_void,
+        rect: egui::Rect,
+        ppp: f32,
+    ) {
+        let pos = noir_platform::windowing::cursor_client_pos(parent);
+        let inside = pos
+            .map(|(x, y)| {
+                x >= (rect.min.x * ppp) as i32
+                    && x <= (rect.max.x * ppp) as i32
+                    && y >= (rect.min.y * ppp) as i32
+                    && y <= (rect.max.y * ppp) as i32
+            })
+            .unwrap_or(false);
+        if inside && pos != self.last_video_cursor {
+            self.mark_mouse_activity();
+        }
+        if pos.is_some() {
+            self.last_video_cursor = pos;
+        }
     }
 
     /// Whether the playback control bar should currently be drawn. It hides
@@ -1337,6 +1371,7 @@ impl eframe::App for NoirApp {
             && !self.settings_overlay_open;
         if !want_video {
             self.viewport_rect = None;
+            self.last_video_cursor = None;
         }
         if self.engine_attached {
             if let Ok(handle) = frame.window_handle() {
@@ -1353,6 +1388,10 @@ impl eframe::App for NoirApp {
                                 self.video_child_shown = true;
                             }
                             let ppp = ctx.pixels_per_point();
+                            // Movement over the video area never reaches egui
+                            // (the native child window swallows it), so poll
+                            // the OS cursor to keep the auto-hide honest.
+                            self.poll_video_cursor_activity(parent, rect, ppp);
                             let _ = noir_platform::windowing::position_video_child(
                                 parent,
                                 (rect.min.x * ppp) as i32,
