@@ -833,9 +833,13 @@ impl NoirApp {
             self.debug_info = !self.debug_info;
         }
 
-        // Any key press or mouse click also resets the auto-hide timer: the
-        // control bar must come back on ANY deliberate input, not only mouse
-        // movement (e.g. when the OS cursor never leaves the video surface).
+        // Keyboard input and clicks keep the auto-hide timer running while
+        // the control bar is visible, but deliberately never summon it once
+        // it has hidden: hotkey use during playback (seek, volume, pause…)
+        // must not interrupt the video with the bar. Only real mouse movement
+        // (egui pointer deltas or OS-cursor movement over the video surface)
+        // reveals the bar again. Pausing via hotkey still shows the bar,
+        // because controls are always visible when playback is not playing.
         let input_activity = ctx.input(|i| {
             i.pointer.any_pressed()
                 || i.events
@@ -843,7 +847,10 @@ impl NoirApp {
                     .any(|e| matches!(e, egui::Event::Key { pressed: true, .. }))
         });
         if input_activity {
-            self.mark_mouse_activity();
+            let snapshot = self.controller.snapshot();
+            if self.controls_visible(&snapshot) {
+                self.mark_mouse_activity();
+            }
         }
 
         // Shortcut capture mode: the next key press rebinds the action.

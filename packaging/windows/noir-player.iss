@@ -12,7 +12,7 @@
 ; HKCU\Software\Classes.
 
 #define MyAppName "NOIR Player"
-#define MyAppVersion "0.1.9"
+#define MyAppVersion "0.1.10"
 #define MyAppPublisher "NOIR Player"
 #define MyAppExeName "noir-player.exe"
 

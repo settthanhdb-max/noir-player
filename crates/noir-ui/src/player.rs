@@ -37,12 +37,13 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     } else {
         0.0
     };
-    // Control strip height: transport bar (or transport + expanded section).
-    // Always reserved while controls are enabled so the video rect does not
-    // jump when the auto-hiding bar appears or disappears. Values are in egui
-    // points; egui converts to physical pixels via pixels_per_point when the
-    // mpv child window is positioned, so no ppp scaling is needed here.
-    let control_strip_height = if appearance.show_controls {
+    // Control strip height: transport bar (or transport + expanded section)
+    // while the bar is visible, ZERO while it has auto-hidden so the video
+    // reclaims the full player area (the mpv child window is repositioned to
+    // the new viewport rect every frame). Values are in egui points; egui
+    // converts to physical pixels via pixels_per_point when the mpv child
+    // window is positioned, so no ppp scaling is needed here.
+    let control_strip_height = if appearance.show_controls && controls_visible {
         if app.adjustments_expanded {
             // 64 collapsed bar + room for the expanded adjustments section.
             374.0
@@ -136,61 +137,22 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     }
 
     // Control bar below the viewport, outside the native video rect. It stays
-    // hidden while the mouse rests during playback and reappears on movement.
+    // hidden while the mouse rests during playback and reappears on movement;
+    // while hidden the strip is zero-height, so the video fills the whole
+    // player area and no empty band is left at the bottom.
     //
-    // IMPORTANT: the code below used to allocate the strip first and then
-    // paint the bar afterwards; allocate_exact_size ADVANCES the layout cursor
-    // past the reserved strip, so the bar was drawn below the window's bottom
-    // edge and clipped off-screen entirely (this is why the "hotbar" never
-    // showed, even though the strip itself rendered). allocate_ui draws INSIDE
-    // the reserved region, so the bar can never fall outside the window.
-    if appearance.show_controls {
+    // IMPORTANT: paint with allocate_ui, which draws INSIDE the reserved
+    // region. allocate_exact_size only ADVANCES the layout cursor past the
+    // strip, which once pushed the bar below the window's bottom edge where
+    // it was clipped entirely (the early "hotbar never shows" bug).
+    if control_strip_height > 0.0 {
         let _strip = ui.allocate_ui(Vec2::new(avail.x, control_strip_height), |ui| {
-            if controls_visible {
-                let colors = Palette::Dark.colors();
-                egui::Frame::default()
-                    .fill(colors.surface)
-                    .inner_margin(egui::Margin::symmetric(10, 5))
-                    .stroke(egui::Stroke::new(1.0, colors.border))
-                    .show(ui, |ui| control_panel(app, ui, &snapshot));
-            } else {
-                // The bar is hidden (auto-hide timer expired during playback):
-                // keep the strip alive with a pinned summon button, a persistent
-                // version stamp and (F2) the live auto-hide diagnostics. All of
-                // this is visible even in fullscreen, when the top bar is gone.
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if crate::icons::icon_button_small(
-                        ui,
-                        crate::icons::Icon::Up,
-                        app.tr.t("ctrl.show_controls"),
-                    ) {
-                        app.mark_mouse_activity();
-                    }
-                    ui.label(
-                        RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
-                            .small()
-                            .monospace()
-                            .color(Palette::Dark.colors().text_muted),
-                    );
-                    if app.debug_info {
-                        let since = app.last_mouse_activity.elapsed().as_secs_f32();
-                        ui.label(
-                            RichText::new(format!(
-                                "act {:.1}s | poll_in {} | mpv_ev {} | ah {} d {:.1} | fs {}",
-                                since,
-                                app.last_poll_inside,
-                                app.mpv_activity_count,
-                                app.settings.appearance.autohide_controls,
-                                app.settings.appearance.autohide_delay,
-                                app.is_fullscreen
-                            ))
-                            .small()
-                            .monospace()
-                            .color(Palette::Dark.colors().text_secondary),
-                        );
-                    }
-                });
-            }
+            let colors = Palette::Dark.colors();
+            egui::Frame::default()
+                .fill(colors.surface)
+                .inner_margin(egui::Margin::symmetric(10, 5))
+                .stroke(egui::Stroke::new(1.0, colors.border))
+                .show(ui, |ui| control_panel(app, ui, &snapshot));
         });
     }
 }

@@ -21,11 +21,13 @@ customizable.
 ```
 
 During playback a single **auto-hiding control bar** sits below the video.
-It is visible by default, hides after 4 seconds without mouse or keyboard
-input (the delay is configurable in Settings → Appearance) and reappears
-the instant you move the mouse or press a key.
-There are no taskbars and no on-screen pop-up menus — right-click is
-intentionally inert. A **More settings** expander inside the bar opens
+It is visible by default and hides after 4 seconds without input (the delay
+is configurable in Settings → Appearance). Moving the mouse brings it
+back instantly and the video expands to fill the reclaimed space; hotkeys
+keep it alive while it is visible but never summon it mid-film, so seeking
+or changing volume by keyboard never interrupts the picture. There are no
+taskbars and no on-screen pop-up menus — right-click is intentionally
+inert. A **More settings** expander inside the bar opens
 visuals/speed/scaling/audio adjustments that apply **live** — playback is
 never paused, and no confirmation is needed. A **Restore defaults** button
 reverts the visuals to their defaults, and the Settings screen now has
@@ -74,9 +76,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design,
 cargo build --release
 ```
 During playback a single **auto-hiding control bar** sits below the video:
-it is visible by default, hides after 4 seconds without mouse or keyboard
-input and reappears as soon as you move the mouse or press a key. No
-taskbars and no on-screen pop-up menus — right-click is inert. The bar's
+it is visible by default, hides after 4 seconds without input, and the
+video expands to reclaim the space while it is hidden (mouse movement
+summons it back; hotkeys do not). No taskbars and no on-screen pop-up
+menus — right-click is inert. The bar's
 **More settings** expander reveals visuals/speed/scaling/audio adjustments
 that apply live, without pausing playback. Keyboard shortcuts keep working.
 
