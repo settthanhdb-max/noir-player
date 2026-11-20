@@ -39,10 +39,13 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     };
     // Control strip height: transport bar (or transport + expanded section).
     // Always reserved while controls are enabled so the video rect does not
-    // jump when the auto-hiding bar appears or disappears.
+    // jump when the auto-hiding bar appears or disappears. Values are in egui
+    // points; egui converts to physical pixels via pixels_per_point when the
+    // mpv child window is positioned, so no ppp scaling is needed here.
     let control_strip_height = if appearance.show_controls {
         if app.adjustments_expanded {
-            330.0
+            // 64 collapsed bar + room for the expanded adjustments section.
+            374.0
         } else {
             64.0
         }
@@ -137,32 +140,39 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
 
     // Control bar below the viewport, outside the native video rect. It stays
     // hidden while the mouse rests during playback and reappears on movement.
+    //
+    // IMPORTANT: the code below used to allocate the strip first and then
+    // paint the bar afterwards; allocate_exact_size ADVANCES the layout cursor
+    // past the reserved strip, so the bar was drawn below the window's bottom
+    // edge and clipped off-screen entirely (this is why the "hotbar" never
+    // showed, even though the strip itself rendered). allocate_ui draws INSIDE
+    // the reserved region, so the bar can never fall outside the window.
     if appearance.show_controls {
-        let (_, strip) =
-            ui.allocate_exact_size(Vec2::new(avail.x, control_strip_height), Sense::hover());
-        if strip.hovered() {
+        let strip = ui.allocate_ui(Vec2::new(avail.x, control_strip_height), |ui| {
+            if controls_visible {
+                let colors = Palette::Dark.colors();
+                egui::Frame::default()
+                    .fill(colors.surface)
+                    .inner_margin(egui::Margin::symmetric(10, 5))
+                    .stroke(egui::Stroke::new(1.0, colors.border))
+                    .show(ui, |ui| control_panel(app, ui, &snapshot));
+            } else {
+                // The bar is hidden: pin a small summon button in the bottom-right
+                // corner of the strip. It is clickable proof the strip itself
+                // renders, and guarantees controls can always be brought back.
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if crate::icons::icon_button_small(
+                        ui,
+                        crate::icons::Icon::Up,
+                        app.tr.t("ctrl.show_controls"),
+                    ) {
+                        app.mark_mouse_activity();
+                    }
+                });
+            }
+        });
+        if strip.response.hovered() {
             app.mark_mouse_activity();
-        }
-        if controls_visible {
-            let colors = Palette::Dark.colors();
-            egui::Frame::default()
-                .fill(colors.surface)
-                .inner_margin(egui::Margin::symmetric(10, 5))
-                .stroke(egui::Stroke::new(1.0, colors.border))
-                .show(ui, |ui| control_panel(app, ui, &snapshot));
-        } else {
-            // The bar is hidden: pin a small summon button in the bottom-right
-            // corner of the strip. It is clickable proof the strip itself
-            // renders, and guarantees controls can always be brought back.
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if crate::icons::icon_button_small(
-                    ui,
-                    crate::icons::Icon::Up,
-                    app.tr.t("ctrl.show_controls"),
-                ) {
-                    app.mark_mouse_activity();
-                }
-            });
         }
     }
 }
@@ -193,13 +203,6 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
         ui.monospace(format_time(duration));
     });
 
-    // Row 2: transport, volume, expand toggle, screen toggles.
-    let playback = app.settings.playback.clone();
-    let max_volume = match app.settings.playback.max_volume_policy {
-        1 => 130u32,
-        2 => 200,
-        _ => 100,
-    };
     // Row 2: transport, volume, expand toggle, screen toggles.
     let playback = app.settings.playback.clone();
     let max_volume = match app.settings.playback.max_volume_policy {

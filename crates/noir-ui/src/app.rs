@@ -1163,7 +1163,6 @@ impl NoirApp {
                         // Live auto-hide diagnostics (F2): proves whether
                         // mouse activity over the video is being detected.
                         if self.debug_info {
-                            let snapshot = self.controller.snapshot();
                             let since = self.last_mouse_activity.elapsed().as_secs_f32();
                             ui.label(
                                 RichText::new(format!(
