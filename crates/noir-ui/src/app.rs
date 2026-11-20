@@ -221,6 +221,8 @@ impl NoirApp {
         };
         self.controller.open(path, resume);
         self.screen = Screen::Player;
+        // Show the control bar immediately when media opens.
+        self.mark_mouse_activity();
     }
 
     pub fn play_from_queue(&mut self, index: usize) {
@@ -287,6 +289,9 @@ impl NoirApp {
     pub fn toggle_fullscreen(&mut self, ctx: &Context) {
         self.is_fullscreen = !self.is_fullscreen;
         ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
+        // Give instant visual feedback after toggling: the control bar shows
+        // again immediately instead of staying hidden.
+        self.mark_mouse_activity();
     }
 
     /// Entry point for files passed on the command line (file associations).
@@ -1125,6 +1130,16 @@ impl NoirApp {
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Persistent build stamp: always visible in every
+                        // screen (also during video playback, since the top
+                        // bar is outside the native video area). A running
+                        // exe without it is a stale build.
+                        ui.label(
+                            RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
+                                .small()
+                                .monospace()
+                                .color(crate::theme::Palette::Dark.colors().text_muted),
+                        );
                         for screen in Screen::ALL {
                             let label = self.tr.t(screen.key());
                             if ui.selectable_label(self.screen == screen, label).clicked() {

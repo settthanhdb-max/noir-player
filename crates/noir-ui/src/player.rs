@@ -187,6 +187,13 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
         2 => 200,
         _ => 100,
     };
+    // Row 2: transport, volume, expand toggle, screen toggles.
+    let playback = app.settings.playback.clone();
+    let max_volume = match app.settings.playback.max_volume_policy {
+        1 => 130u32,
+        2 => 200,
+        _ => 100,
+    };
     ui.horizontal(|ui| {
         let tr = app.tr;
         if crate::icons::icon_button(ui, crate::icons::Icon::Prev, tr.t("ctrl.prev")) {
@@ -280,6 +287,17 @@ fn control_panel(app: &mut NoirApp, ui: &mut Ui, snapshot: &EngineSnapshot) {
         if crate::icons::icon_button(ui, fs_icon, fs_tip) {
             app.toggle_fullscreen(ui.ctx());
         }
+
+        ui.separator();
+
+        // Build stamp inside the bar itself: whenever the bar is visible you
+        // can read which build actually produced it.
+        ui.label(
+            RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
+                .small()
+                .monospace()
+                .color(crate::theme::Palette::Dark.colors().text_muted),
+        );
     });
 
     // Expanded section: everything adjustable without pausing playback.
