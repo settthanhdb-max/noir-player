@@ -157,9 +157,10 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                     .stroke(egui::Stroke::new(1.0, colors.border))
                     .show(ui, |ui| control_panel(app, ui, &snapshot));
             } else {
-                // The bar is hidden: pin a small summon button in the bottom-right
-                // corner of the strip. It is clickable proof the strip itself
-                // renders, and guarantees controls can always be brought back.
+                // The bar is hidden (auto-hide timer expired during playback):
+                // keep the strip alive with a pinned summon button, a persistent
+                // version stamp and (F2) the live auto-hide diagnostics. All of
+                // this is visible even in fullscreen, when the top bar is gone.
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if crate::icons::icon_button_small(
                         ui,
@@ -167,6 +168,29 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                         app.tr.t("ctrl.show_controls"),
                     ) {
                         app.mark_mouse_activity();
+                    }
+                    ui.label(
+                        RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
+                            .small()
+                            .monospace()
+                            .color(Palette::Dark.colors().text_muted),
+                    );
+                    if app.debug_info {
+                        let since = app.last_mouse_activity.elapsed().as_secs_f32();
+                        ui.label(
+                            RichText::new(format!(
+                                "act {:.1}s | poll_in {} | mpv_ev {} | ah {} d {:.1} | fs {}",
+                                since,
+                                app.last_poll_inside,
+                                app.mpv_activity_count,
+                                app.settings.appearance.autohide_controls,
+                                app.settings.appearance.autohide_delay,
+                                app.is_fullscreen
+                            ))
+                            .small()
+                            .monospace()
+                            .color(Palette::Dark.colors().text_secondary),
+                        );
                     }
                 });
             }

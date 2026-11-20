@@ -78,9 +78,9 @@ pub struct NoirApp {
     /// movement detection there is done by comparing polled positions.
     last_video_cursor: Option<(i32, i32)>,
     /// Was the last OS-cursor poll position inside the video viewport?
-    last_poll_inside: bool,
+    pub(crate) last_poll_inside: bool,
     /// Number of mpv-observed mouse-over-video movement events received.
-    mpv_activity_count: u64,
+    pub(crate) mpv_activity_count: u64,
     /// Show live auto-hide diagnostics (toggle with F2).
     pub debug_info: bool,
     pub fill_mode: usize,
@@ -817,6 +817,19 @@ impl NoirApp {
             self.debug_info = !self.debug_info;
         }
 
+        // Any key press or mouse click also resets the auto-hide timer: the
+        // control bar must come back on ANY deliberate input, not only mouse
+        // movement (e.g. when the OS cursor never leaves the video surface).
+        let input_activity = ctx.input(|i| {
+            i.pointer.any_pressed()
+                || i.events
+                    .iter()
+                    .any(|e| matches!(e, egui::Event::Key { pressed: true, .. }))
+        });
+        if input_activity {
+            self.mark_mouse_activity();
+        }
+
         // Shortcut capture mode: the next key press rebinds the action.
         if let Some(action) = self.capture_action {
             for event in &events {
@@ -1166,13 +1179,14 @@ impl NoirApp {
                             let since = self.last_mouse_activity.elapsed().as_secs_f32();
                             ui.label(
                                 RichText::new(format!(
-                                    "act {:.1}s | poll_in {} | mpv_ev {} | cd {} ah {} d {:.1}",
+                                    "act {:.1}s | poll_in {} | mpv_ev {} | cd {} ah {} d {:.1} | fs {}",
                                     since,
                                     self.last_poll_inside,
                                     self.mpv_activity_count,
                                     self.settings.appearance.show_controls,
                                     self.settings.appearance.autohide_controls,
-                                    self.settings.appearance.autohide_delay
+                                    self.settings.appearance.autohide_delay,
+                                    self.is_fullscreen
                                 ))
                                 .small()
                                 .monospace()
