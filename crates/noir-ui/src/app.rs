@@ -69,8 +69,9 @@ pub struct NoirApp {
     pub scrubbing: Option<f64>,
     pub viewport_rect: Option<Rect>,
     pub video_child_shown: bool,
-    pub settings_overlay_open: bool,
-    pub resume_after_overlay: bool,
+    /// Expandable adjustments section inside the control bar (below the
+    /// video, so playback is NOT paused while it is open).
+    pub adjustments_expanded: bool,
     pub last_mouse_activity: Instant,
     /// Last OS cursor position seen over the player (physical client px).
     /// egui never receives pointer deltas over the native video child, so
@@ -156,14 +157,17 @@ impl NoirApp {
             scrubbing: None,
             viewport_rect: None,
             video_child_shown: false,
-            settings_overlay_open: false,
-            resume_after_overlay: false,
+            adjustments_expanded: false,
             last_mouse_activity: Instant::now(),
             last_video_cursor: None,
             fill_mode: 0,
             tweaks: PlaybackTweaks::default(),
             ipc_open_file: paths.data_dir.join("ipc_open.txt"),
-            osd_message: None,
+            // Version splash: unambiguous proof of which build is running.
+            osd_message: Some((
+                format!("NOIR Player v{}", env!("CARGO_PKG_VERSION")),
+                Instant::now(),
+            )),
             error_message: None,
             dialogs: FileDialogs::default(),
             pending_pick: None,
@@ -295,16 +299,6 @@ impl NoirApp {
         app
     }
 
-    fn pause_for_overlay(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
-        if matches!(
-            snapshot.state,
-            PlaybackState::Playing | PlaybackState::Buffering
-        ) {
-            self.controller.execute(EngineCommand::Pause);
-            self.resume_after_overlay = true;
-        }
-    }
-
     /// Any pointer movement over the player resets the auto-hide timer so the
     /// control bar reappears while the mouse is in use.
     pub fn mark_mouse_activity(&mut self) {
@@ -344,7 +338,7 @@ impl NoirApp {
     /// after `autohide_delay` seconds without mouse movement while a video
     /// plays, and always shows while idle/paused or when an overlay is open.
     pub fn controls_visible(&self, snapshot: &noir_playback::engine::EngineSnapshot) -> bool {
-        if !self.settings.appearance.autohide_controls || self.settings_overlay_open {
+        if !self.settings.appearance.autohide_controls || self.adjustments_expanded {
             return true;
         }
         if self.screen != Screen::Player {
@@ -357,11 +351,10 @@ impl NoirApp {
             < Duration::from_secs_f32(self.settings.appearance.autohide_delay.max(0.5))
     }
 
-    /// Open the playback settings overlay; video playback pauses while the
-    /// overlay is open because the native video surface must be hidden for
-    /// egui widgets over the video area to be visible and clickable.
-    pub fn open_settings_overlay(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
-        self.pause_for_overlay(snapshot);
+    /// Expand the in-bar adjustments section, re-staging the current values.
+    /// Playback keeps running: the section lives in the control bar below the
+    /// video, outside the native video surface.
+    pub fn begin_adjustments(&mut self, snapshot: &noir_playback::engine::EngineSnapshot) {
         let video = &self.settings.video;
         self.tweaks = PlaybackTweaks {
             brightness: video.brightness,
@@ -373,15 +366,13 @@ impl NoirApp {
             volume: snapshot.volume,
             muted: snapshot.muted,
         };
-        self.settings_overlay_open = true;
+        self.adjustments_expanded = true;
+        self.mark_mouse_activity();
     }
 
-    pub fn close_overlays(&mut self) {
-        self.settings_overlay_open = false;
-        if self.resume_after_overlay {
-            self.resume_after_overlay = false;
-            self.controller.execute(EngineCommand::Play);
-        }
+    pub fn end_adjustments(&mut self) {
+        self.adjustments_expanded = false;
+        self.mark_mouse_activity();
     }
 
     /// Commit the staged overlay values: video equalizer via the settings
@@ -1367,8 +1358,7 @@ impl eframe::App for NoirApp {
         let want_video = self.engine_attached
             && self.screen == Screen::Player
             && has_media
-            && !matches!(snapshot.state, PlaybackState::Error(_))
-            && !self.settings_overlay_open;
+            && !matches!(snapshot.state, PlaybackState::Error(_));
         if !want_video {
             self.viewport_rect = None;
             self.last_video_cursor = None;

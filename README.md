@@ -21,14 +21,15 @@ customizable.
 ```
 
 During playback a single **auto-hiding control bar** sits below the video:
-move the mouse and the timeline and transport controls reappear immediately;
-stop moving for 10 seconds (configurable in Appearance → Auto-hide delay) and
-the bar hides so nothing distracts from the film. There are no taskbars and
-no on-screen pop-up menus — right-click is intentionally inert. The bar's
-**Playback settings…** button opens a visuals/speed/scaling/audio dialog
-with an explicit **Apply Settings** button. Keyboard shortcuts keep working.
-A Windows installer with file associations is available — see
-[BUILDING.md](BUILDING.md).
+move the mouse and the timeline and controls reappear immediately; stop
+moving for 10 seconds (configurable in Appearance) and the bar hides so
+nothing distracts from the film. There are no taskbars and no on-screen
+pop-up menus — right-click is intentionally inert. A **More settings**
+expander inside the bar opens visuals/speed/scaling/audio adjustments with
+an explicit **Apply Settings** button — and playback is never paused for
+adjusting. Keyboard shortcuts keep working. On Windows, update with
+`scripts\update-windows.ps1` (pull, build, replace the installed exe) and
+see [BUILDING.md](BUILDING.md) for the installer.
 
 ## Highlights
 
@@ -71,8 +72,9 @@ During playback a single **auto-hiding control bar** sits below the video:
 move the mouse and the timeline and controls reappear immediately; stop
 moving for 10 seconds (configurable in Appearance) and the bar hides. No
 taskbars and no on-screen pop-up menus — right-click is inert. The bar's
-**Playback settings…** button opens a visuals/speed/scaling/audio dialog
-with an explicit **Apply Settings** button. Keyboard shortcuts keep working.
+**More settings** expander reveals visuals/speed/scaling/audio adjustments
+with an explicit **Apply Settings** button, without pausing playback.
+Keyboard shortcuts keep working.
 
 
 The mpv backend requires libmpv (`libmpv-dev` / `mpv-devel` / an mpv SDK).
