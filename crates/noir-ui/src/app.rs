@@ -77,6 +77,12 @@ pub struct NoirApp {
     /// egui never receives pointer deltas over the native video child, so
     /// movement detection there is done by comparing polled positions.
     last_video_cursor: Option<(i32, i32)>,
+    /// Was the last OS-cursor poll position inside the video viewport?
+    last_poll_inside: bool,
+    /// Number of mpv-observed mouse-over-video movement events received.
+    mpv_activity_count: u64,
+    /// Show live auto-hide diagnostics (toggle with F2).
+    pub debug_info: bool,
     pub fill_mode: usize,
     pub tweaks: PlaybackTweaks,
     pub ipc_open_file: std::path::PathBuf,
@@ -160,6 +166,9 @@ impl NoirApp {
             adjustments_expanded: false,
             last_mouse_activity: Instant::now(),
             last_video_cursor: None,
+            last_poll_inside: false,
+            mpv_activity_count: 0,
+            debug_info: false,
             fill_mode: 0,
             tweaks: PlaybackTweaks::default(),
             ipc_open_file: paths.data_dir.join("ipc_open.txt"),
@@ -331,6 +340,7 @@ impl NoirApp {
                     && y <= (rect.max.y * ppp) as i32
             })
             .unwrap_or(false);
+        self.last_poll_inside = inside;
         if inside && pos != self.last_video_cursor {
             self.mark_mouse_activity();
         }
@@ -529,6 +539,7 @@ impl NoirApp {
                 PlaybackEvent::Activity => {
                     // The mouse moved over the video (reported by the engine
                     // itself): show the auto-hiding control bar again.
+                    self.mpv_activity_count += 1;
                     self.mark_mouse_activity();
                 }
                 PlaybackEvent::FileLoaded { path } => {
@@ -791,6 +802,20 @@ impl NoirApp {
 
     fn handle_input(&mut self, ctx: &Context) {
         let events: Vec<egui::Event> = ctx.input(|i| i.events.clone());
+
+        // F2 toggles the auto-hide diagnostics readout in the top bar.
+        if events.iter().any(|e| {
+            matches!(
+                e,
+                egui::Event::Key {
+                    key: egui::Key::F2,
+                    pressed: true,
+                    ..
+                }
+            )
+        }) {
+            self.debug_info = !self.debug_info;
+        }
 
         // Shortcut capture mode: the next key press rebinds the action.
         if let Some(action) = self.capture_action {
@@ -1135,6 +1160,26 @@ impl NoirApp {
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Live auto-hide diagnostics (F2): proves whether
+                        // mouse activity over the video is being detected.
+                        if self.debug_info {
+                            let snapshot = self.controller.snapshot();
+                            let since = self.last_mouse_activity.elapsed().as_secs_f32();
+                            ui.label(
+                                RichText::new(format!(
+                                    "act {:.1}s | poll_in {} | mpv_ev {} | cd {} ah {} d {:.1}",
+                                    since,
+                                    self.last_poll_inside,
+                                    self.mpv_activity_count,
+                                    self.settings.appearance.show_controls,
+                                    self.settings.appearance.autohide_controls,
+                                    self.settings.appearance.autohide_delay
+                                ))
+                                .small()
+                                .monospace()
+                                .color(crate::theme::Palette::Dark.colors().text_secondary),
+                            );
+                        }
                         // Persistent build stamp: always visible in every
                         // screen (also during video playback, since the top
                         // bar is outside the native video area). A running

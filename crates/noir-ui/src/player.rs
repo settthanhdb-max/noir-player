@@ -150,6 +150,19 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                 .inner_margin(egui::Margin::symmetric(10, 5))
                 .stroke(egui::Stroke::new(1.0, colors.border))
                 .show(ui, |ui| control_panel(app, ui, &snapshot));
+        } else {
+            // The bar is hidden: pin a small summon button in the bottom-right
+            // corner of the strip. It is clickable proof the strip itself
+            // renders, and guarantees controls can always be brought back.
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if crate::icons::icon_button_small(
+                    ui,
+                    crate::icons::Icon::Up,
+                    app.tr.t("ctrl.show_controls"),
+                ) {
+                    app.mark_mouse_activity();
+                }
+            });
         }
     }
 }
