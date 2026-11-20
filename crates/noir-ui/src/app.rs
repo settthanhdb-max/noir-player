@@ -526,6 +526,11 @@ impl NoirApp {
                 PlaybackEvent::OsdMessage(text) => {
                     self.osd_message = Some((text, Instant::now()));
                 }
+                PlaybackEvent::Activity => {
+                    // The mouse moved over the video (reported by the engine
+                    // itself): show the auto-hiding control bar again.
+                    self.mark_mouse_activity();
+                }
                 PlaybackEvent::FileLoaded { path } => {
                     if self.settings.playlist.auto_add_opened
                         && !self.queue.iter().any(|e| e.path == path)

@@ -229,6 +229,11 @@ fn observe_core_properties(mpv: &Mpv) {
     let _ = mpv.observe_property("volume", Format::Int64, 3);
     let _ = mpv.observe_property("mute", Format::Flag, 4);
     let _ = mpv.observe_property("eof-reached", Format::Flag, 5);
+    // mpv tracks the mouse over its own (embedded) video window; every
+    // movement fires a property change, which we surface as Activity so the
+    // UI can re-show the auto-hiding control bar even though the video child
+    // window swallows all native mouse messages.
+    let _ = mpv.observe_property("mouse-pos", Format::Node, 12);
     let _ = mpv.observe_property("seeking", Format::Flag, 6);
     let _ = mpv.observe_property("hwdec-current", Format::String, 7);
     let _ = mpv.observe_property("dropped-frames", Format::Int64, 8);
@@ -346,6 +351,10 @@ fn handle_property_change(
         }
         "track-list" => pending.push(PlaybackEvent::TracksChanged(read_tracks(mpv))),
         "chapter-list" => pending.push(PlaybackEvent::ChaptersChanged(read_chapters(mpv))),
+        "mouse-pos" => {
+            // Any update means the mouse moved over the video.
+            pending.push(PlaybackEvent::Activity);
+        }
         _ => {}
     }
 }

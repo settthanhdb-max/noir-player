@@ -40,6 +40,10 @@ pub enum PlaybackEvent {
     Error(String),
     /// Backend reported a property useful for the OSD.
     OsdMessage(String),
+    /// User activity over the video surface (mouse movement seen by the
+    /// backend's own event stream). Used to re-show the auto-hiding control
+    /// bar, because the embedded video window swallows UI pointer events.
+    Activity,
 }
 
 /// Events produced by the library subsystem (scanner, database, history).
