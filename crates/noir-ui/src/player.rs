@@ -121,9 +121,6 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
         egui::Id::unique("video_viewport"),
         Sense::click_and_drag(),
     );
-    if interaction.hovered() {
-        app.mark_mouse_activity();
-    }
     if interaction.clicked() {
         app.mark_mouse_activity();
         app.controller.toggle_play();
@@ -148,7 +145,7 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     // showed, even though the strip itself rendered). allocate_ui draws INSIDE
     // the reserved region, so the bar can never fall outside the window.
     if appearance.show_controls {
-        let strip = ui.allocate_ui(Vec2::new(avail.x, control_strip_height), |ui| {
+        let _strip = ui.allocate_ui(Vec2::new(avail.x, control_strip_height), |ui| {
             if controls_visible {
                 let colors = Palette::Dark.colors();
                 egui::Frame::default()
@@ -195,9 +192,6 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                 });
             }
         });
-        if strip.response.hovered() {
-            app.mark_mouse_activity();
-        }
     }
 }
 
@@ -358,22 +352,48 @@ fn adjustments_body(app: &mut NoirApp, ui: &mut Ui) {
     );
 
     ui.horizontal(|ui| {
-        // Visuals.
+        // Visuals — every change applies to the running engine immediately
+        // (no confirmation step), and is persisted to settings when the drag
+        // finishes.
         ui.vertical(|ui| {
             ui.label(RichText::new(app.tr.t("menu.visuals")).small());
-            {
-                let t = &mut app.tweaks;
-                ui.add(egui::Slider::new(&mut t.brightness, -100..=100).text("Brightness"));
-                ui.add(egui::Slider::new(&mut t.contrast, -100..=100).text("Contrast"));
-                ui.add(egui::Slider::new(&mut t.saturation, -100..=100).text("Saturation"));
-            }
-        });
-        ui.vertical(|ui| {
-            ui.add_space(18.0);
-            {
-                let t = &mut app.tweaks;
-                ui.add(egui::Slider::new(&mut t.gamma, -100..=100).text("Gamma"));
-                ui.add(egui::Slider::new(&mut t.hue, -180..=180).text("Hue"));
+            let mut brightness = app.tweaks.brightness;
+            let mut contrast = app.tweaks.contrast;
+            let mut saturation = app.tweaks.saturation;
+            let mut gamma = app.tweaks.gamma;
+            let mut hue = app.tweaks.hue;
+            let b = ui
+                .add(egui::Slider::new(&mut brightness, -100..=100).text("Brightness"))
+                .changed();
+            let c = ui
+                .add(egui::Slider::new(&mut contrast, -100..=100).text("Contrast"))
+                .changed();
+            let s = ui
+                .add(egui::Slider::new(&mut saturation, -100..=100).text("Saturation"))
+                .changed();
+            let g = ui
+                .add(egui::Slider::new(&mut gamma, -100..=100).text("Gamma"))
+                .changed();
+            let h = ui
+                .add(egui::Slider::new(&mut hue, -180..=180).text("Hue"))
+                .changed();
+            if b || c || s || g || h {
+                app.tweaks.brightness = brightness;
+                app.tweaks.contrast = contrast;
+                app.tweaks.saturation = saturation;
+                app.tweaks.gamma = gamma;
+                app.tweaks.hue = hue;
+                app.controller
+                    .execute(noir_playback::engine::EngineCommand::SetVideoEqualizer {
+                        brightness,
+                        contrast,
+                        saturation,
+                        gamma,
+                        hue,
+                    });
+                if !ui.input(|i| i.pointer.primary_down()) {
+                    app.persist_equalizer();
+                }
             }
         });
 
@@ -382,15 +402,21 @@ fn adjustments_body(app: &mut NoirApp, ui: &mut Ui) {
         // Speed.
         ui.vertical(|ui| {
             ui.label(RichText::new(app.tr.t("menu.speed")).small());
+            let mut speed = app.tweaks.speed;
+            if ui
+                .add(egui::Slider::new(&mut speed, 0.25..=4.0).text("x"))
+                .changed()
             {
-                let t = &mut app.tweaks;
-                ui.add(egui::Slider::new(&mut t.speed, 0.25..=4.0).text("x"));
+                app.tweaks.speed = speed;
+                let clamped = app.settings.playback.clamp_speed(speed as f32);
+                app.controller.set_speed(clamped as f64);
             }
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 for preset in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0] {
                     if ui.selectable_label(false, format!("{}x", preset)).clicked() {
-                        let clamped = app.settings.playback.clamp_speed(preset);
+                        app.tweaks.speed = preset;
+                        let clamped = app.settings.playback.clamp_speed(preset as f32);
                         app.controller.set_speed(clamped as f64);
                     }
                 }
@@ -417,17 +443,28 @@ fn adjustments_body(app: &mut NoirApp, ui: &mut Ui) {
     };
     ui.horizontal(|ui| {
         ui.label(RichText::new(app.tr.t("menu.audio")).small());
-        {
-            let t = &mut app.tweaks;
-            ui.add(egui::Slider::new(&mut t.volume, 0..=max_volume).text("Volume"));
-            ui.checkbox(&mut t.muted, app.tr.t("ctrl.mute"));
+        let mut volume = app.tweaks.volume;
+        let mut muted = app.tweaks.muted;
+        let volume_changed = ui
+            .add(egui::Slider::new(&mut volume, 0..=max_volume).text("Volume"))
+            .changed();
+        let muted_changed = ui.checkbox(&mut muted, app.tr.t("ctrl.mute")).changed();
+        if volume_changed {
+            app.tweaks.volume = volume;
+            let clamped = app.settings.playback.clamp_volume(volume);
+            app.controller.set_volume(clamped);
+        }
+        if muted_changed {
+            app.tweaks.muted = muted;
+            app.controller
+                .execute(noir_playback::engine::EngineCommand::SetMuted { muted });
         }
         ui.separator();
-        if ui.button(app.tr.t("menu.apply")).clicked() {
-            app.apply_tweaks();
-        }
         if ui.button(app.tr.t("menu.reset")).clicked() {
+            // Restore the toolbar's settings to their defaults and apply
+            // them to the running engine immediately.
             app.reset_tweaks();
+            app.apply_tweaks();
         }
         if ui.button(app.tr.t("menu.close")).clicked() {
             app.end_adjustments();

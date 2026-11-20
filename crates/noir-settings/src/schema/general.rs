@@ -3,7 +3,53 @@
 use crate::value::{SettingEntry, SettingKind, SettingValue};
 use serde::{Deserialize, Serialize};
 
-pub const LANGUAGE_OPTIONS: [&str; 2] = ["English", "Tiếng Việt"];
+// Native display names. The index order MUST match
+// `noir_ui::locales::LANGUAGES` (a noir-ui unit test enforces that), and
+// index 1 stays Vietnamese so settings written by 2-language builds keep
+// their meaning.
+pub const LANGUAGE_OPTIONS: [&str; 41] = [
+    "English",
+    "Tiếng Việt",
+    "简体中文",
+    "繁體中文",
+    "日本語",
+    "한국어",
+    "Español",
+    "Français",
+    "Deutsch",
+    "Italiano",
+    "Português do Brasil",
+    "Português",
+    "Русский",
+    "Українська",
+    "Polski",
+    "Čeština",
+    "Magyar",
+    "Română",
+    "Български",
+    "Српски",
+    "Hrvatski",
+    "Català",
+    "Nederlands",
+    "Svenska",
+    "Norsk bokmål",
+    "Dansk",
+    "Suomi",
+    "Ελληνικά",
+    "Türkçe",
+    "العربية",
+    "עברית",
+    "فارسی",
+    "اردو",
+    "हिन्दी",
+    "বাংলা",
+    "ไทย",
+    "தமிழ்",
+    "Bahasa Indonesia",
+    "Bahasa Melayu",
+    "Filipino",
+    "Kiswahili",
+];
 pub const DATETIME_OPTIONS: [&str; 3] = ["ISO 8601", "Locale", "24h"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

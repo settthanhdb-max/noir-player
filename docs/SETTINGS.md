@@ -26,7 +26,7 @@ directory and are validated on load and on save.
 Startup screen, restore session, resume playback, confirm exit, always on
 top, remember window geometry, start in fullscreen, auto-open last media,
 prevent sleep during playback, confirm before clearing history, default media
-directory, default screenshot directory, language (English / Tiếng Việt),
+directory, default screenshot directory, UI language (41 options — English and Vietnamese fully translated, 39 more for the core chrome),
 date/time format.
 
 ### 2. Appearance (23)

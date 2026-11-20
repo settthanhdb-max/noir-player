@@ -21,7 +21,7 @@ pub use value::{SettingEntry, SettingKind, SettingValue};
 
 /// Current settings schema version. Bump when making a breaking change and
 /// add a migration step in [`migration::migrate`].
-pub const SETTINGS_VERSION: u32 = 2;
+pub const SETTINGS_VERSION: u32 = 3;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SettingsError {

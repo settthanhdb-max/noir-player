@@ -22,6 +22,7 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     let mut changed = false;
     let mut reset_category: Option<String> = None;
     let mut reset_all = false;
+    let mut apply_settings = false;
     let mut import_cfg = false;
     let mut export_cfg = false;
     let mut import_keys = false;
@@ -75,6 +76,9 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
                 }
                 if ui.button(tr.t("set.reset_all")).clicked() {
                     reset_all = true;
+                }
+                if ui.button(tr.t("set.apply")).clicked() {
+                    apply_settings = true;
                 }
             });
 
@@ -190,6 +194,15 @@ pub fn screen(app: &mut NoirApp, ui: &mut Ui) {
     }
     if changed {
         app.on_settings_changed();
+    }
+    if apply_settings {
+        // Re-validate, persist and push the live settings (language, theme,
+        // engine commands) so every change takes effect immediately.
+        app.on_settings_changed();
+        app.osd_message = Some((
+            app.tr.t("set.applied").to_string(),
+            std::time::Instant::now(),
+        ));
     }
 }
 

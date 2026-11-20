@@ -28,7 +28,8 @@ pub struct AppearanceSettings {
     pub show_info_overlay: bool,
     pub show_controls: bool,
     pub autohide_controls: bool,
-    /// Seconds of mouse inactivity before the control bar hides.
+    /// Seconds of inactivity (no mouse or keyboard input) before the control
+    /// bar hides.
     pub autohide_delay: f32,
     /// Index into [`STARTUP_SCREEN_OPTIONS`].
     pub startup_screen: usize,
@@ -59,7 +60,7 @@ impl Default for AppearanceSettings {
             show_info_overlay: true,
             show_controls: true,
             autohide_controls: true,
-            autohide_delay: 10.0,
+            autohide_delay: 4.0,
             startup_screen: 1,
             fullscreen_ui: false,
             osd_visible: true,
@@ -231,10 +232,10 @@ impl AppearanceSettings {
             SettingEntry::new(
                 "appearance.autohide_delay",
                 "Auto-hide delay",
-                "Seconds of mouse inactivity before the control bar hides.",
+                "Seconds of inactivity (mouse or keyboard) before the control bar hides.",
                 SettingKind::Slider {
-                    min: 0.5,
-                    max: 10.0,
+                    min: 1.0,
+                    max: 60.0,
                     step: 0.5,
                     unit: "s",
                 },

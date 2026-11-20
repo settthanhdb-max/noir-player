@@ -20,14 +20,17 @@ customizable.
 +------------------------------------------------------------------------------+
 ```
 
-During playback a single **auto-hiding control bar** sits below the video:
-move the mouse and the timeline and controls reappear immediately; stop
-moving for 10 seconds (configurable in Appearance) and the bar hides so
-nothing distracts from the film. There are no taskbars and no on-screen
-pop-up menus — right-click is intentionally inert. A **More settings**
-expander inside the bar opens visuals/speed/scaling/audio adjustments with
-an explicit **Apply Settings** button — and playback is never paused for
-adjusting. Keyboard shortcuts keep working. On Windows, update with
+During playback a single **auto-hiding control bar** sits below the video.
+It is visible by default, hides after 4 seconds without mouse or keyboard
+input (the delay is configurable in Settings → Appearance) and reappears
+the instant you move the mouse or press a key.
+There are no taskbars and no on-screen pop-up menus — right-click is
+intentionally inert. A **More settings** expander inside the bar opens
+visuals/speed/scaling/audio adjustments that apply **live** — playback is
+never paused, and no confirmation is needed. A **Restore defaults** button
+reverts the visuals to their defaults, and the Settings screen now has
+**Apply settings** so configuration changes take effect immediately without
+restarting. Keyboard shortcuts keep working. On Windows, update with
 `scripts\update-windows.ps1` (pull, build, replace the installed exe) and
 see [BUILDING.md](BUILDING.md) for the installer.
 
@@ -45,7 +48,9 @@ see [BUILDING.md](BUILDING.md) for the installer.
 - **Media library** backed by SQLite with background directory scanning,
   history, favorites and resume positions.
 - **Playlist manager** with M3U/M3U8 import/export, repeat modes and shuffle.
-- **English and Vietnamese** UI.
+- **41 UI languages** — English and Vietnamese fully translated, plus 39
+  further languages (Chinese, Japanese, Korean, Spanish, Arabic, Hindi,
+  Thai…) for the core player chrome, with script-correct fonts bundled.
 
 ## Screenshots of the architecture, not the pixels
 
@@ -69,12 +74,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design,
 cargo build --release
 ```
 During playback a single **auto-hiding control bar** sits below the video:
-move the mouse and the timeline and controls reappear immediately; stop
-moving for 10 seconds (configurable in Appearance) and the bar hides. No
+it is visible by default, hides after 4 seconds without mouse or keyboard
+input and reappears as soon as you move the mouse or press a key. No
 taskbars and no on-screen pop-up menus — right-click is inert. The bar's
 **More settings** expander reveals visuals/speed/scaling/audio adjustments
-with an explicit **Apply Settings** button, without pausing playback.
-Keyboard shortcuts keep working.
+that apply live, without pausing playback. Keyboard shortcuts keep working.
 
 
 The mpv backend requires libmpv (`libmpv-dev` / `mpv-devel` / an mpv SDK).

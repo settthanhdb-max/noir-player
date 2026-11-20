@@ -152,7 +152,7 @@ pub fn normalize(settings: &mut Settings) {
         .clamp_volume(settings.playback.default_volume);
     settings.appearance.ui_scale = settings.appearance.ui_scale.clamp(0.75, 2.0);
     settings.appearance.window_opacity = settings.appearance.window_opacity.clamp(0.5, 1.0);
-    settings.appearance.autohide_delay = settings.appearance.autohide_delay.clamp(0.5, 10.0);
+    settings.appearance.autohide_delay = settings.appearance.autohide_delay.clamp(0.5, 60.0);
     settings.video.zoom = settings.video.zoom.clamp(0.5, 4.0);
     settings.video.screenshot_quality = settings.video.screenshot_quality.clamp(50, 100);
     settings.subtitles.vertical_position = settings.subtitles.vertical_position.clamp(0.0, 100.0);

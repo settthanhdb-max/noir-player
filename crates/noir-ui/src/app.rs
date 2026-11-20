@@ -1,7 +1,7 @@
 //! Application shell: navigation, top bar, global state, event plumbing.
 
 use crate::dialogs::{DialogKind, DialogResult, FileDialogs};
-use crate::i18n::{Language, Tr};
+use crate::i18n::Tr;
 use crate::state::{PickRequest, QueueEntry, RepeatMode, Screen};
 use crate::{player, playlist_panel, screens, settings_ui, theme};
 use egui::{Color32, Context, CornerRadius, Rect, RichText, Ui};
@@ -142,7 +142,7 @@ impl NoirApp {
         };
 
         let mut app = Self {
-            tr: Tr::new(Language::from_index(settings.general.language)),
+            tr: Tr::from_index(settings.general.language),
             settings,
             store,
             controller,
@@ -411,6 +411,20 @@ impl NoirApp {
             .execute(EngineCommand::SetMuted { muted: t.muted });
     }
 
+    /// Persist the currently staged equalizer values (toolbar live tuning)
+    /// without pausing playback or resending unrelated commands.
+    pub fn persist_equalizer(&mut self) {
+        let t = self.tweaks;
+        {
+            let video = &mut self.settings.video;
+            video.brightness = t.brightness;
+            video.contrast = t.contrast;
+            video.saturation = t.saturation;
+            video.gamma = t.gamma;
+            video.hue = t.hue;
+        }
+        self.on_settings_changed();
+    }
     pub fn reset_tweaks(&mut self) {
         let defaults = Settings::defaults();
         self.tweaks = PlaybackTweaks {
@@ -482,7 +496,7 @@ impl NoirApp {
             tracing::error!("failed to save settings: {e}");
             self.error_message = Some(format!("{}: {e}", self.tr.t("set.error")));
         }
-        self.tr = Tr::new(Language::from_index(self.settings.general.language));
+        self.tr = Tr::from_index(self.settings.general.language);
         let a = &self.settings.appearance;
         self.last_theme_fingerprint = (
             self.current_palette(),
@@ -537,10 +551,12 @@ impl NoirApp {
                     self.osd_message = Some((text, Instant::now()));
                 }
                 PlaybackEvent::Activity => {
-                    // The mouse moved over the video (reported by the engine
-                    // itself): show the auto-hiding control bar again.
+                    // Diagnostic counter only: some mpv builds fire mouse-pos
+                    // updates without real mouse movement, which kept the bar
+                    // visible forever. Reveal now relies purely on real cursor
+                    // displacement (poll_video_cursor_activity) and on real
+                    // egui input (movement, clicks, keys).
                     self.mpv_activity_count += 1;
-                    self.mark_mouse_activity();
                 }
                 PlaybackEvent::FileLoaded { path } => {
                     if self.settings.playlist.auto_add_opened

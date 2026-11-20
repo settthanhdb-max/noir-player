@@ -8,6 +8,7 @@ pub mod app;
 pub mod dialogs;
 pub mod i18n;
 pub mod icons;
+pub mod locales;
 pub mod player;
 pub mod playlist_panel;
 pub mod screens;
@@ -33,7 +34,12 @@ pub fn run(initial_files: Vec<String>) -> anyhow::Result<()> {
     eframe::run_native(
         "NOIR Player",
         options,
-        Box::new(move |cc| Ok(Box::new(NoirApp::new_with_files(cc, &initial_files)))),
+        Box::new(move |cc| {
+            // Register script fallback fonts before any text layout happens,
+            // so all bundled UI languages render without tofu boxes.
+            i18n::install_fonts(&cc.egui_ctx);
+            Ok(Box::new(NoirApp::new_with_files(cc, &initial_files)))
+        }),
     )
     .map_err(|e| anyhow::anyhow!(e.to_string()))
 }
